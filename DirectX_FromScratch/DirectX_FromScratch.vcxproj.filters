@@ -39,9 +39,6 @@
     <ClInclude Include="DDSTextureLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MathHelper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="d3dx12_barriers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -78,6 +75,12 @@
     <ClInclude Include="ScreenCapture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="UploadBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MathHelper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectX_FromScratch.cpp">
@@ -95,6 +98,9 @@
     <ClCompile Include="ScreenCapture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MathHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DirectX_FromScratch.rc">
@@ -108,5 +114,8 @@
     <Image Include="DirectX_FromScratch.ico">
       <Filter>Resource Files</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\color.hlsl" />
   </ItemGroup>
 </Project>

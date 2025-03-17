@@ -1,4 +1,15 @@
 #pragma once
+#include "UploadBuffer.h"
+#include "framework.h"
+#include "resource.h"
+#include <WindowsX.h>
+#include "MathHelper.h"
+#include "UploadBuffer.h"
+using Microsoft::WRL::ComPtr;
+using namespace std;
+using namespace DirectX;
+using namespace DirectX::PackedVector;
+
 
 #if defined(DEBUG) || defined(_DEBUG)
 #define _CRTDBG_MAP_ALLOC
@@ -12,6 +23,19 @@
 #pragma comment(lib,"d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxguid.lib")
+
+
+struct Vertex
+{
+	XMFLOAT3 Pos;
+	XMFLOAT4 Color;
+};
+
+struct ObjectConstants
+{
+	XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
+};
 
 class d3dApp
 {
@@ -44,9 +68,9 @@ protected:
 	 void Update(const GameTimer& gt);
 	 void Draw(const GameTimer& gt);
 
-	 void OnMouseDown(WPARAM btnState, int x, int y) { }
-	 void OnMouseUp(WPARAM btnState, int x, int y) { }
-	 void OnMouseMove(WPARAM btnState, int x, int y) { }
+	 void OnMouseDown(WPARAM btnState, int x, int y);
+	 void OnMouseUp(WPARAM btnState, int x, int y);
+	 void OnMouseMove(WPARAM btnState, int x, int y);
 
 protected:
 
@@ -116,6 +140,39 @@ protected:
 	DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	int mClientWidth = 800;
 	int mClientHeight = 600;
+
+private:
+	void BuildDescriptorHeaps();
+	void BuildConstantBuffers();
+	void BuildRootSignature();
+	void BuildShadersAndInputLayout();
+	void BuildBoxGeometry();
+	void BuildPSO();
+
+private:
+	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mCbvHeap = nullptr;
+
+	std::unique_ptr<UploadBuffer<ObjectConstants>> mObjectCB = nullptr;
+
+	std::unique_ptr<MeshGeometry> mBoxGeo = nullptr;
+
+	ComPtr<ID3DBlob> mvsByteCode = nullptr;
+	ComPtr<ID3DBlob> mpsByteCode = nullptr;
+
+	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
+
+	ComPtr<ID3D12PipelineState> mPSO = nullptr;
+
+	XMFLOAT4X4 mWorld = MathHelper::Identity4x4();
+	XMFLOAT4X4 mView = MathHelper::Identity4x4();
+	XMFLOAT4X4 mProj = MathHelper::Identity4x4();
+
+	float mTheta = 1.5f * XM_PI;
+	float mPhi = XM_PIDIV4;
+	float mRadius = 5.0f;
+
+	POINT mLastMousePos;
 
 };
 
