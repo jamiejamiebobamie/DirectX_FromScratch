@@ -72,7 +72,7 @@ bool d3dApp::Initialize()
 	// Reset the command list to prep for initialization commands.
 	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
-	BuildDescriptorHeaps();
+	BuildDescriptorHeaps(); // build CBV descriptor heaps
 	BuildConstantBuffers();
 	BuildRootSignature();
 	BuildShadersAndInputLayout();
@@ -432,26 +432,92 @@ void d3dApp::BuildShadersAndInputLayout()
 	mInputLayout =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 }
 
 void d3dApp::BuildBoxGeometry()
 {
-	std::array<Vertex, 8> vertices =
+
+	std::array<VertexPosData, 13> origPos =
 	{
-		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
-		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) })
+		// CUBE
+		VertexPosData({ XMFLOAT3(-1.0f, -1.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(-1.0f, +1.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(+1.0f, +1.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(+1.0f, -1.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(-1.0f, -1.0f, +1.0f) }),
+		VertexPosData({ XMFLOAT3(-1.0f, +1.0f, +1.0f) }),
+		VertexPosData({ XMFLOAT3(+1.0f, +1.0f, +1.0f) }),
+		VertexPosData({ XMFLOAT3(+1.0f, -1.0f, +1.0f) }),
+
+		// PYRAMID
+		VertexPosData({ XMFLOAT3(-1.0f, 0.0f, 1.0f) }),
+		VertexPosData({ XMFLOAT3(1.0f, 0.0f, 1.0f) }),
+		VertexPosData({ XMFLOAT3(1.0f, 0.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(-1.0f, 0.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(0.0f, 2.0f, 0.0f) })
 	};
 
-	std::array<std::uint16_t, 36> indices =
+	std::array<VertexPosData, 13> posVertices =
 	{
+		// CUBE
+		VertexPosData({ XMFLOAT3(-1.0f, -1.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(-1.0f, +1.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(+1.0f, +1.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(+1.0f, -1.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(-1.0f, -1.0f, +1.0f) }),
+		VertexPosData({ XMFLOAT3(-1.0f, +1.0f, +1.0f) }),
+		VertexPosData({ XMFLOAT3(+1.0f, +1.0f, +1.0f) }),
+		VertexPosData({ XMFLOAT3(+1.0f, -1.0f, +1.0f) }),
+
+		// PYRAMID
+		VertexPosData({ XMFLOAT3(-1.0f, 0.0f, 1.0f) }),
+		VertexPosData({ XMFLOAT3(1.0f, 0.0f, 1.0f) }),
+		VertexPosData({ XMFLOAT3(1.0f, 0.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(-1.0f, 0.0f, -1.0f) }),
+		VertexPosData({ XMFLOAT3(0.0f, 2.0f, 0.0f) })
+	};
+
+
+
+	for (int i = 0; i < origPos.size(); i++){
+		XMMATRIX shift = i < 8 ? XMMatrixTranslation(1.2f, 0.0f, 0.0f) : XMMatrixTranslation(-1.2f, -1.0f, 0.0f);
+		XMMATRIX pos = XMMatrixAffineTransformation(
+			XMVectorSet(1.0f, 1.0f, 1.0f, 0.0f),
+			XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
+			XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
+			XMVectorSet(origPos[i].Pos.x, origPos[i].Pos.y, origPos[i].Pos.z, 1.0f)
+		);
+		XMMATRIX shiftedPos = pos * shift;
+		XMFLOAT4X4 newPos;
+		XMStoreFloat4x4(&newPos, shiftedPos);
+		posVertices[i].Pos = XMFLOAT3(newPos.m[3][0], newPos.m[3][1], newPos.m[3][2]);
+	}
+
+	std::array<VertexColorData, 13> colorVertices =
+	{
+		// CUBE
+		VertexColorData({ XMFLOAT4(Colors::White) }),
+		VertexColorData({ XMFLOAT4(Colors::Black) }),
+		VertexColorData({ XMFLOAT4(Colors::Red) }),
+		VertexColorData({ XMFLOAT4(Colors::Green) }),
+		VertexColorData({ XMFLOAT4(Colors::Blue) }),
+		VertexColorData({ XMFLOAT4(Colors::Yellow) }),
+		VertexColorData({ XMFLOAT4(Colors::Cyan) }),
+		VertexColorData({ XMFLOAT4(Colors::Magenta) }),
+
+		// PYRAMID
+		VertexColorData({ XMFLOAT4(Colors::Green) }),
+		VertexColorData({ XMFLOAT4(Colors::Green) }),
+		VertexColorData({ XMFLOAT4(Colors::Green) }),
+		VertexColorData({ XMFLOAT4(Colors::Green) }),
+		VertexColorData({ XMFLOAT4(Colors::Red) })
+	};
+
+	std::array<std::uint16_t, 54> indices =
+	{
+		// CUBE
 		// front face
 		0, 1, 2,
 		0, 2, 3,
@@ -474,29 +540,59 @@ void d3dApp::BuildBoxGeometry()
 
 		// bottom face
 		4, 0, 3,
-		4, 3, 7
-	};
+		4, 3, 7,
 
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+		// PYRAMID
+		// left-side face pyramid
+		0, 4, 3,
+
+		// bottom face
+		3, 2, 0,
+		2, 1, 0,
+
+		// back-side face pyramid
+		0, 1, 4,
+
+		// right-side face pyramid
+		4, 1, 2,
+
+		// front-side face pyramid
+		2, 3, 4
+	};
 
 	mBoxGeo = std::make_unique<MeshGeometry>();
 	mBoxGeo->Name = "boxGeo";
 
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &mBoxGeo->VertexBufferCPU));
-	CopyMemory(mBoxGeo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+	const UINT PosvbByteSize = (UINT)posVertices.size() * sizeof(VertexPosData);
+	const UINT ColorvbByteSize = (UINT)colorVertices.size() * sizeof(VertexColorData);
+
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	ThrowIfFailed(D3DCreateBlob(PosvbByteSize, &mBoxGeo->VertexBufferCPU));
+	CopyMemory(mBoxGeo->VertexBufferCPU->GetBufferPointer(), posVertices.data(), PosvbByteSize);
+
+	mBoxGeo->PosVertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), posVertices.data(), PosvbByteSize, mBoxGeo->VertexBufferUploader);
+
+	mBoxGeo->VertexBufferCPU.Reset();
+
+	ThrowIfFailed(D3DCreateBlob(ColorvbByteSize, &mBoxGeo->VertexBufferCPU));
+	CopyMemory(mBoxGeo->VertexBufferCPU->GetBufferPointer(), colorVertices.data(), ColorvbByteSize);
+
+	mBoxGeo->ColorVertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), colorVertices.data(), ColorvbByteSize, mBoxGeo->VertexBufferUploader);
 
 	ThrowIfFailed(D3DCreateBlob(ibByteSize, &mBoxGeo->IndexBufferCPU));
 	CopyMemory(mBoxGeo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
-	mBoxGeo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, mBoxGeo->VertexBufferUploader);
-
 	mBoxGeo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, mBoxGeo->IndexBufferUploader);
 
-	mBoxGeo->VertexByteStride = sizeof(Vertex);
-	mBoxGeo->VertexBufferByteSize = vbByteSize;
+	mBoxGeo->PosVertexByteStride = sizeof(VertexPosData);
+	mBoxGeo->PosVertexBufferByteSize = PosvbByteSize;
+	mBoxGeo->ColorVertexByteStride = sizeof(VertexColorData);
+	mBoxGeo->ColorVertexBufferByteSize = ColorvbByteSize;
+
 	mBoxGeo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	mBoxGeo->IndexBufferByteSize = ibByteSize;
 
@@ -589,6 +685,7 @@ void d3dApp::Update(const GameTimer& gt)
 	// Update the constant buffer with the latest worldViewProj matrix.
 	ObjectConstants objConstants;
 	XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
+	objConstants.Time = mTimer.TotalTime();
 	mObjectCB->CopyData(0, objConstants);
 }
 
@@ -625,18 +722,28 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
-	D3D12_VERTEX_BUFFER_VIEW vbv = mBoxGeo->VertexBufferView();
-	D3D12_INDEX_BUFFER_VIEW ibv = mBoxGeo->IndexBufferView();
+	D3D12_VERTEX_BUFFER_VIEW vbvPos = mBoxGeo->PosVertexBufferView();
+	D3D12_VERTEX_BUFFER_VIEW vbvColor = mBoxGeo->ColorVertexBufferView();
 
-	mCommandList->IASetVertexBuffers(0, 1, &vbv);
+	D3D12_VERTEX_BUFFER_VIEW vBuffers[] = { vbvPos , vbvColor };
+
+	mCommandList->IASetVertexBuffers(0, 2, vBuffers);
+
+	D3D12_INDEX_BUFFER_VIEW ibv = mBoxGeo->IndexBufferView();
 	mCommandList->IASetIndexBuffer(&ibv);
 	mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	mCommandList->SetGraphicsRootDescriptorTable(0, mCbvHeap->GetGPUDescriptorHandleForHeapStart());
 
 	mCommandList->DrawIndexedInstanced(
-		mBoxGeo->DrawArgs["box"].IndexCount,
+		//mBoxGeo->DrawArgs["box"].IndexCount,
+		36,
 		1, 0, 0, 0);
+
+	mCommandList->DrawIndexedInstanced(
+		//mBoxGeo->DrawArgs["box"].IndexCount, // pyramid
+		18,
+		1, 36, 8, 0);
 
 	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);

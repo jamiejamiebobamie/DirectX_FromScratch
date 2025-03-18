@@ -26,15 +26,20 @@ using namespace DirectX::PackedVector;
 #pragma comment(lib, "dxguid.lib")
 
 
-struct Vertex
+struct VertexPosData
 {
 	XMFLOAT3 Pos;
+};
+
+struct VertexColorData
+{
 	XMFLOAT4 Color;
 };
 
 struct ObjectConstants
 {
 	XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
+	FLOAT Time = 0.0f;
 };
 
 class d3dApp
