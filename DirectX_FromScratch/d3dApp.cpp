@@ -345,7 +345,9 @@ void d3dApp::OnResize()
 	mScreenViewport.MinDepth = 0.0f;
 	mScreenViewport.MaxDepth = 1.0f;
 
+	//mScissorRect = { mClientWidth / 4, mClientHeight / 4, (mClientWidth * 3) / 4, (mClientHeight * 3) / 4 };
 	mScissorRect = { 0, 0, mClientWidth, mClientHeight };
+
 
 	// The window resized, so update the aspect ratio and recompute the projection matrix.
 	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
@@ -621,6 +623,9 @@ void d3dApp::BuildPSO()
 		mpsByteCode->GetBufferSize()
 	};
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	//psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME; 
+	//psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.SampleMask = UINT_MAX;

@@ -36,13 +36,17 @@ VertexOut VS(VertexIn vin)
 	
 	// Just pass vertex color into the pixel shader.
     vout.Color = vin.Color;
+    //vout.Color = lerp(vin.Color, float4(1.0f, 0.0f, 0.0f, 0.0f), abs(sin(gTime)));
     
     return vout;
 }
 
 float4 PS(VertexOut pin) : SV_Target
 {
+    //return lerp(pin.Color, float4(1.0f,0.0f,0.0f,0.0f), abs(sin(gTime)));
+    //clip(pin.Color.r - abs(sin(gTime)));
     return pin.Color;
+
 }
 
 
