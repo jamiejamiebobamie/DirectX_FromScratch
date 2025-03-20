@@ -692,7 +692,15 @@ void d3dApp::Update(const GameTimer& gt)
 	XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
 	objConstants.Time = mTimer.TotalTime();
 	mObjectCB->CopyData(0, objConstants);
+
+	// lerp mouse scroll
+	if ((mTargetDelta - mDelta) * (mTargetDelta - mDelta) > mScrollEpsilon) {
+		float t = (mTimer.TotalTime() - mScrollStartTime)*0.05f;
+		mDelta = (1 - t) * mDelta + t * mTargetDelta;
+		mRadius = MathHelper::Clamp(mDelta, 3.0f, 15.0f);
+	}
 }
+
 
 void d3dApp::Draw(const GameTimer& gt)
 {
@@ -780,6 +788,17 @@ void d3dApp::OnMouseDown(WPARAM btnState, int x, int y)
 	SetCapture(mhMainWnd);
 }
 
+void d3dApp::OnMouseScroll(int delta)
+{
+	float newDelta = delta > 0 ? -0.5f : 0.5f;
+	//LPCWSTR output = d3dUtil::convertIntToDisplayStr((int)newDelta);
+	//OutputDebugString(output);
+	if (mTargetDelta + newDelta >= 3.0f && mTargetDelta + newDelta <= 15.0f) {
+		mTargetDelta += newDelta;
+		mScrollStartTime = mTimer.TotalTime();
+	}
+}
+
 void d3dApp::OnMouseUp(WPARAM btnState, int x, int y)
 {
 	ReleaseCapture();
@@ -819,6 +838,7 @@ void d3dApp::OnMouseMove(WPARAM btnState, int x, int y)
 
 LRESULT d3dApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	int delta;
 	switch (msg) 
 	{
 
@@ -923,6 +943,11 @@ LRESULT d3dApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_MBUTTONDOWN:
 	case WM_RBUTTONDOWN:
 		OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		return 0;
+
+	case WM_MOUSEWHEEL:
+		delta = GET_WHEEL_DELTA_WPARAM(wParam); // Retrieve the wheel delta
+		OnMouseScroll(delta);
 		return 0;
 
 	case WM_LBUTTONUP:

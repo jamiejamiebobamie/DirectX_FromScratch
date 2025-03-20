@@ -76,6 +76,7 @@ protected:
 	 void OnMouseDown(WPARAM btnState, int x, int y);
 	 void OnMouseUp(WPARAM btnState, int x, int y);
 	 void OnMouseMove(WPARAM btnState, int x, int y);
+	 void OnMouseScroll(int delta);
 
 protected:
 
@@ -179,5 +180,10 @@ private:
 
 	POINT mLastMousePos;
 
+	// mouse scroll vars
+	float mDelta = 3.0f;
+	float mTargetDelta = 3.0f;
+	double mScrollEpsilon = 0.000001f;
+	float mScrollStartTime = 0.0f;
 };
 

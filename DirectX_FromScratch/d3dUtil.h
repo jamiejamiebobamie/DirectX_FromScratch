@@ -93,6 +93,7 @@ class d3dUtil
 public:
 
     static bool IsKeyDown(int vkeyCode);
+    static LPCWSTR convertIntToDisplayStr(int myInt);
 
     static std::string ToString(HRESULT hr);
 

@@ -1,6 +1,7 @@
 
 #include "d3dUtil.h"
 #include <comdef.h>
+#include <strsafe.h>
 #include <fstream>
 
 using Microsoft::WRL::ComPtr;
@@ -130,3 +131,9 @@ std::wstring DxException::ToString()const
 }
 
 
+LPCWSTR d3dUtil::convertIntToDisplayStr(int myInt) {
+    wchar_t buffer[1000];
+    StringCchPrintf(buffer, 1000, L"%d", myInt);
+    LPCWSTR wStr = buffer;
+    return wStr;
+}
