@@ -48,50 +48,10 @@ bool d3dApp::Get4xMsaaState()const
 	return m4xMsaaState;
 }
 
-void d3dApp::Set4xMsaaState(bool value)
-{
-	if(m4xMsaaState != value){
-		m4xMsaaState = value;
-
-		CreateSwapChain();
-		OnResize();
-	}
-}
-
 bool d3dApp::Initialize()
 {
-	if (!InitMainWindow()) {
-		return false;
-	}
-	if (!InitDirect3D()) {
-		return false;
-	}
 
-	OnResize();
-
-	// Reset the command list to prep for initialization commands.
-	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
-
-	BuildDescriptorHeaps();
-	BuildConstantBuffers();
-	BuildRootSignature();
-	BuildShadersAndInputLayout();
-	BuildBoxGeometry();
-	BuildPSO();
-
-	// Execute the initialization commands.
-	ThrowIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	// Wait until initialization is complete.
-	FlushCommandQueue();
-
-	return true;
-}
-
-bool d3dApp::InitMainWindow()
-{
+	// START: Init Main Window - - - - - - - -
 	WNDCLASS wc;
 	wc.style = CS_HREDRAW | CS_VREDRAW;
 	wc.lpfnWndProc = MainWndProc;
@@ -112,7 +72,7 @@ bool d3dApp::InitMainWindow()
 
 	RECT R = { 0, 0, mClientWidth, mClientHeight };
 	DWORD dwStyle = WS_OVERLAPPEDWINDOW | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_CAPTION;
-	AdjustWindowRect(&R, dwStyle, false);
+	AdjustWindowRect(&R, dwStyle, true);
 	int width = R.right - R.left;
 	int height = R.bottom - R.top;
 
@@ -126,12 +86,9 @@ bool d3dApp::InitMainWindow()
 
 	ShowWindow(mhMainWnd, SW_SHOWMAXIMIZED); // SW_SHOW
 	UpdateWindow(mhMainWnd);
+	// END: Init Main Window - - - - - - - -
 
-	return true;
-}
-
-bool d3dApp::InitDirect3D() {
-
+	// START: Init Direct 3D - - - - - - - -
 	#if defined(DEBUG) || defined(_DEBUG)
 		{
 			ComPtr<ID3D12Debug> debugController;
@@ -144,7 +101,7 @@ bool d3dApp::InitDirect3D() {
 
 	HRESULT hardwareResult = D3D12CreateDevice(
 		nullptr,
-		D3D_FEATURE_LEVEL_11_0, // book has: D3D_FEATURE_LEVEL_11_0
+		D3D_FEATURE_LEVEL_11_0,
 		IID_PPV_ARGS(&md3dDevice));
 
 	if (FAILED(hardwareResult))
@@ -164,7 +121,6 @@ bool d3dApp::InitDirect3D() {
 	mDsvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	mCbvSrvUavDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-
 	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
 	msQualityLevels.Format = mBackBufferFormat;
 	msQualityLevels.SampleCount = 4;
@@ -178,19 +134,11 @@ bool d3dApp::InitDirect3D() {
 	m4xMsaaQuality = msQualityLevels.NumQualityLevels;
 	assert(m4xMsaaQuality > 0 && "Unexpected MSAA quality level.");
 
-	#ifdef _DEBUG
+#ifdef _DEBUG
 	LogAdapters();
-	#endif
+#endif
 
-	CreateCommandObjects();
-	CreateSwapChain();
-	CreateRtvAndDsvDescriptorHeaps();
-
-	return true;
-}
-
-void d3dApp::CreateCommandObjects()
-{
+	// START: Create Command Objects - - - - - - - -
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -208,11 +156,9 @@ void d3dApp::CreateCommandObjects()
 		IID_PPV_ARGS(mCommandList.GetAddressOf())));
 
 	mCommandList->Close();
-}
+	// END: Create Command Objects - - - - - - - -
 
-void d3dApp::CreateSwapChain()
-{
-
+	// START: Create Swap Chain - - - - - - - -
 	mSwapChain.Reset();
 
 	DXGI_SWAP_CHAIN_DESC sd;
@@ -236,10 +182,9 @@ void d3dApp::CreateSwapChain()
 		mCommandQueue.Get(),
 		&sd,
 		mSwapChain.GetAddressOf()));
-}
+	// END: Create Swap Chain - - - - - - - -
 
-void d3dApp::CreateRtvAndDsvDescriptorHeaps()
-{
+	// START: Create RTV/DSV Desc Heaps - - - - - - - -
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
 	rtvHeapDesc.NumDescriptors = SwapChainBufferCount;
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
@@ -255,105 +200,16 @@ void d3dApp::CreateRtvAndDsvDescriptorHeaps()
 	dsvHeapDesc.NodeMask = 0;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(
 		&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
-}
+	// END: Create RTV/DSV Desc Heaps - - - - - - - -
 
-void d3dApp::OnResize()
-{
-	assert(md3dDevice);
-	assert(mSwapChain);
-	assert(mDirectCmdListAlloc);
+	// END: Init Direct 3D - - - - - - - -
 
-	FlushCommandQueue();
+	OnResize();
 
+	// Reset the command list to prep for initialization commands.
 	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
-	for (int i = 0; i < SwapChainBufferCount; ++i) {
-		mSwapChainBuffer[i].Reset();
-	}
-	mDepthStencilBuffer.Reset();
-
-	ThrowIfFailed(mSwapChain->ResizeBuffers(
-		SwapChainBufferCount,
-		mClientWidth, mClientHeight,
-		mBackBufferFormat,
-		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
-	));
-
-	mCurrBackBuffer = 0;
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
-	for (UINT i = 0; i < SwapChainBufferCount; i++)
-	{
-		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
-		md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
-		rtvHeapHandle.Offset(1, mRtvDescriptorSize);
-	}
-
-	D3D12_RESOURCE_DESC depthStencilDesc;
-	depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	depthStencilDesc.Alignment = 0;
-	depthStencilDesc.Width = mClientWidth;
-	depthStencilDesc.Height = mClientHeight;
-	depthStencilDesc.DepthOrArraySize = 1;
-	depthStencilDesc.MipLevels = 1;
-
-	depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-
-	depthStencilDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
-	depthStencilDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
-
-	depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-	D3D12_CLEAR_VALUE optClear;
-	optClear.Format = mDepthStencilFormat;
-	optClear.DepthStencil.Depth = 1.0f;
-	optClear.DepthStencil.Stencil = 0;
-
-	CD3DX12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-
-	ThrowIfFailed(md3dDevice->CreateCommittedResource(
-		&heapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&depthStencilDesc,
-		D3D12_RESOURCE_STATE_COMMON,
-		&optClear,
-		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())));
-
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-	dsvDesc.Format = mDepthStencilFormat;
-	dsvDesc.Texture2D.MipSlice = 0;
-	md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), &dsvDesc, DepthStencilView());
-
-	CD3DX12_RESOURCE_BARRIER resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
-		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-	mCommandList->ResourceBarrier(1, &resBarr);
-
-	ThrowIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	FlushCommandQueue();
-
-	mScreenViewport.TopLeftX = 0;
-	mScreenViewport.TopLeftY = 0;
-	mScreenViewport.Width = static_cast<float>(mClientWidth);
-	mScreenViewport.Height = static_cast<float>(mClientHeight);
-	mScreenViewport.MinDepth = 0.0f;
-	mScreenViewport.MaxDepth = 1.0f;
-
-	mScissorRect = { 0, 0, mClientWidth, mClientHeight };
-
-	// The window resized, so update the aspect ratio and recompute the projection matrix.
-	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
-	XMStoreFloat4x4(&mProj, P);
-}
-
-void d3dApp::BuildDescriptorHeaps()
-{
+	// START: Build Descriptor Heaps - - - - - - - -
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
 	cbvHeapDesc.NumDescriptors = 1;
 	cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -361,10 +217,9 @@ void d3dApp::BuildDescriptorHeaps()
 	cbvHeapDesc.NodeMask = 0;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&cbvHeapDesc,
 		IID_PPV_ARGS(&mCbvHeap)));
-}
+	// END: Build Descriptor Heaps - - - - - - - -
 
-void d3dApp::BuildConstantBuffers()
-{
+	// START: Build Constant Buffers - - - - - - - -
 	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(md3dDevice.Get(), 1, true);
 
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
@@ -381,11 +236,10 @@ void d3dApp::BuildConstantBuffers()
 	md3dDevice->CreateConstantBufferView(
 		&cbvDesc,
 		mCbvHeap->GetCPUDescriptorHandleForHeapStart());
-}
+	// END: Build Constant Buffers - - - - - - - -
 
-void d3dApp::BuildRootSignature()
-{
-	// Shader programs typically require resources as input (constant buffers,
+	// START: Build Constant Buffers - - - - - - - -
+		// Shader programs typically require resources as input (constant buffers,
 	// textures, samplers).  The root signature defines the resources the shader
 	// programs expect.  If we think of the shader programs as a function, and
 	// the input resources as function parameters, then the root signature can be
@@ -420,11 +274,10 @@ void d3dApp::BuildRootSignature()
 		serializedRootSig->GetBufferPointer(),
 		serializedRootSig->GetBufferSize(),
 		IID_PPV_ARGS(&mRootSignature)));
-}
+	// END: Build Root Signature - - - - - - - -
 
-void d3dApp::BuildShadersAndInputLayout()
-{
-	HRESULT hr = S_OK;
+	// START: Build Shaders and Input Layout - - - - - - - -
+	hr = S_OK;
 
 	mvsByteCode = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "VS", "vs_5_0");
 	mpsByteCode = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "PS", "ps_5_0");
@@ -434,10 +287,9 @@ void d3dApp::BuildShadersAndInputLayout()
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
-}
+	// END: Build Shaders and Input Layout - - - - - - - -
 
-void d3dApp::BuildBoxGeometry()
-{
+	// START: Build Shaders and Input Layout - - - - - - - -
 	std::array<Vertex, 8> vertices =
 	{
 		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
@@ -506,10 +358,9 @@ void d3dApp::BuildBoxGeometry()
 	submesh.BaseVertexLocation = 0;
 
 	mBoxGeo->DrawArgs["box"] = submesh;
-}
+	// END: Build Shaders and Input Layout - - - - - - - -
 
-void d3dApp::BuildPSO()
-{
+	// START: Build PSO - - - - - - - -
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
 	ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 	psoDesc.InputLayout = { mInputLayout.data(), (UINT)mInputLayout.size() };
@@ -535,6 +386,17 @@ void d3dApp::BuildPSO()
 	psoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	psoDesc.DSVFormat = mDepthStencilFormat;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPSO)));
+	// END: Build PSO - - - - - - - -
+
+	// Execute the initialization commands.
+	ThrowIfFailed(mCommandList->Close());
+	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	// Wait until initialization is complete.
+	FlushCommandQueue();
+
+	return true;
 }
 
 int d3dApp::Run()
@@ -555,8 +417,97 @@ int d3dApp::Run()
 
 			if (!mAppPaused) {
 				CalculateFrameStats();
-				Update(mTimer);
-				Draw(mTimer);
+
+				// START: Update - - - - - - - -
+					// Convert Spherical to Cartesian coordinates.
+				float x = mRadius * sinf(mPhi) * cosf(mTheta);
+				float z = mRadius * sinf(mPhi) * sinf(mTheta);
+				float y = mRadius * cosf(mPhi);
+
+				// Build the view matrix.
+				XMVECTOR pos = XMVectorSet(x, y, z, 1.0f);
+				XMVECTOR target = XMVectorZero();
+				XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+				XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
+				XMStoreFloat4x4(&mView, view);
+
+				XMMATRIX world = XMLoadFloat4x4(&mWorld);
+				XMMATRIX proj = XMLoadFloat4x4(&mProj);
+				XMMATRIX worldViewProj = world * view * proj;
+
+				// Update the constant buffer with the latest worldViewProj matrix.
+				ObjectConstants objConstants;
+				XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
+				mObjectCB->CopyData(0, objConstants);
+				// END: Update - - - - - - - -
+
+				// START: Draw - - - - - - - -
+					// Reuse the memory associated with command recording.
+	// We can only reset when the associated command lists have finished execution on the GPU.
+				ThrowIfFailed(mDirectCmdListAlloc->Reset());
+
+				// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+				// Reusing the command list reuses memory.
+				ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), mPSO.Get()));
+
+				// Set the viewport and scissor rect.  This needs to be reset whenever the command list is reset.
+				mCommandList->RSSetViewports(1, &mScreenViewport);
+				mCommandList->RSSetScissorRects(1, &mScissorRect);
+
+				CD3DX12_RESOURCE_BARRIER resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+					D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				// Indicate a state transition on the resource usage.
+				mCommandList->ResourceBarrier(1, &resBarr);
+
+				// Clear the back buffer and depth buffer.
+				mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
+				mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+				// Specify the buffers we are going to render to.
+				D3D12_CPU_DESCRIPTOR_HANDLE currBackBuffView = CurrentBackBufferView();
+				D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = DepthStencilView();
+				mCommandList->OMSetRenderTargets(1, &currBackBuffView, true, &depthStencilView);
+
+				ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvHeap.Get() };
+				mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+				mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+
+				D3D12_VERTEX_BUFFER_VIEW vbv = mBoxGeo->VertexBufferView();
+				D3D12_INDEX_BUFFER_VIEW ibv = mBoxGeo->IndexBufferView();
+
+				mCommandList->IASetVertexBuffers(0, 1, &vbv);
+				mCommandList->IASetIndexBuffer(&ibv);
+				mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+				mCommandList->SetGraphicsRootDescriptorTable(0, mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+
+				mCommandList->DrawIndexedInstanced(
+					mBoxGeo->DrawArgs["box"].IndexCount,
+					1, 0, 0, 0);
+
+				resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+					D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+				// Indicate a state transition on the resource usage.
+				mCommandList->ResourceBarrier(1, &resBarr);
+
+				// Done recording commands.
+				ThrowIfFailed(mCommandList->Close());
+
+				// Add the command list to the queue for execution.
+				ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+				mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+				// swap the back and front buffers
+				ThrowIfFailed(mSwapChain->Present(0, 0));
+				mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+
+				// Wait until frame commands are complete.  This waiting is inefficient and is
+				// done for simplicity.  Later we will show how to organize our rendering code
+				// so we do not have to wait per frame.
+				FlushCommandQueue();
+				// END: Draw - - - - - - - -
 			}
 			else {
 				Sleep(100);
@@ -565,99 +516,6 @@ int d3dApp::Run()
 	}
 
 	return (int)msg.wParam;
-}
-
-void d3dApp::Update(const GameTimer& gt)
-{
-	// Convert Spherical to Cartesian coordinates.
-	float x = mRadius * sinf(mPhi) * cosf(mTheta);
-	float z = mRadius * sinf(mPhi) * sinf(mTheta);
-	float y = mRadius * cosf(mPhi);
-
-	// Build the view matrix.
-	XMVECTOR pos = XMVectorSet(x, y, z, 1.0f);
-	XMVECTOR target = XMVectorZero();
-	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-	XMStoreFloat4x4(&mView, view);
-
-	XMMATRIX world = XMLoadFloat4x4(&mWorld);
-	XMMATRIX proj = XMLoadFloat4x4(&mProj);
-	XMMATRIX worldViewProj = world * view * proj;
-
-	// Update the constant buffer with the latest worldViewProj matrix.
-	ObjectConstants objConstants;
-	XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
-	mObjectCB->CopyData(0, objConstants);
-}
-
-void d3dApp::Draw(const GameTimer& gt)
-{
-	// Reuse the memory associated with command recording.
-	// We can only reset when the associated command lists have finished execution on the GPU.
-	ThrowIfFailed(mDirectCmdListAlloc->Reset());
-
-	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
-	// Reusing the command list reuses memory.
-	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), mPSO.Get()));
-
-	// Set the viewport and scissor rect.  This needs to be reset whenever the command list is reset.
-	mCommandList->RSSetViewports(1, &mScreenViewport);
-	mCommandList->RSSetScissorRects(1, &mScissorRect);
-
-	CD3DX12_RESOURCE_BARRIER resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	// Indicate a state transition on the resource usage.
-	mCommandList->ResourceBarrier(1, &resBarr);
-
-	// Clear the back buffer and depth buffer.
-	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
-	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-
-	// Specify the buffers we are going to render to.
-	D3D12_CPU_DESCRIPTOR_HANDLE currBackBuffView = CurrentBackBufferView();
-	D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = DepthStencilView();
-	mCommandList->OMSetRenderTargets(1, &currBackBuffView, true, &depthStencilView);
-
-	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvHeap.Get() };
-	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-
-	D3D12_VERTEX_BUFFER_VIEW vbv = mBoxGeo->VertexBufferView();
-	D3D12_INDEX_BUFFER_VIEW ibv = mBoxGeo->IndexBufferView();
-
-	mCommandList->IASetVertexBuffers(0, 1, &vbv);
-	mCommandList->IASetIndexBuffer(&ibv);
-	mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	mCommandList->SetGraphicsRootDescriptorTable(0, mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-
-	mCommandList->DrawIndexedInstanced(
-		mBoxGeo->DrawArgs["box"].IndexCount,
-		1, 0, 0, 0);
-
-	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	// Indicate a state transition on the resource usage.
-	mCommandList->ResourceBarrier(1, &resBarr);
-
-	// Done recording commands.
-	ThrowIfFailed(mCommandList->Close());
-
-	// Add the command list to the queue for execution.
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	// swap the back and front buffers
-	ThrowIfFailed(mSwapChain->Present(0, 0));
-	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
-
-	// Wait until frame commands are complete.  This waiting is inefficient and is
-	// done for simplicity.  Later we will show how to organize our rendering code
-	// so we do not have to wait per frame.
-	FlushCommandQueue();
 }
 
 void d3dApp::OnMouseDown(WPARAM btnState, int x, int y)
@@ -826,9 +684,9 @@ LRESULT d3dApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 			PostQuitMessage(0);
 		}
-		else if ((int)wParam == VK_F2) {
-			Set4xMsaaState(!m4xMsaaState);
-		}
+		//else if ((int)wParam == VK_F2) {
+		//	Set4xMsaaState(!m4xMsaaState);
+		//}
 		return 0;
 	}
 
@@ -988,4 +846,99 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	return (INT_PTR)FALSE;
+}
+
+void d3dApp::OnResize()
+{
+	assert(md3dDevice);
+	assert(mSwapChain);
+	assert(mDirectCmdListAlloc);
+
+	FlushCommandQueue();
+
+	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+
+	for (int i = 0; i < SwapChainBufferCount; ++i) {
+		mSwapChainBuffer[i].Reset();
+	}
+	mDepthStencilBuffer.Reset();
+
+	ThrowIfFailed(mSwapChain->ResizeBuffers(
+		SwapChainBufferCount,
+		mClientWidth, mClientHeight,
+		mBackBufferFormat,
+		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
+	));
+
+	mCurrBackBuffer = 0;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
+	for (UINT i = 0; i < SwapChainBufferCount; i++)
+	{
+		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
+		md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
+		rtvHeapHandle.Offset(1, mRtvDescriptorSize);
+	}
+
+	D3D12_RESOURCE_DESC depthStencilDesc;
+	depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	depthStencilDesc.Alignment = 0;
+	depthStencilDesc.Width = mClientWidth;
+	depthStencilDesc.Height = mClientHeight;
+	depthStencilDesc.DepthOrArraySize = 1;
+	depthStencilDesc.MipLevels = 1;
+
+	depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+
+	depthStencilDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
+	depthStencilDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
+
+	depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+	D3D12_CLEAR_VALUE optClear;
+	optClear.Format = mDepthStencilFormat;
+	optClear.DepthStencil.Depth = 1.0f;
+	optClear.DepthStencil.Stencil = 0;
+
+	CD3DX12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+	ThrowIfFailed(md3dDevice->CreateCommittedResource(
+		&heapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&depthStencilDesc,
+		D3D12_RESOURCE_STATE_COMMON,
+		&optClear,
+		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())));
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Format = mDepthStencilFormat;
+	dsvDesc.Texture2D.MipSlice = 0;
+	md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), &dsvDesc, DepthStencilView());
+
+	CD3DX12_RESOURCE_BARRIER resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+	mCommandList->ResourceBarrier(1, &resBarr);
+
+	ThrowIfFailed(mCommandList->Close());
+	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	FlushCommandQueue();
+
+	mScreenViewport.TopLeftX = 0;
+	mScreenViewport.TopLeftY = 0;
+	mScreenViewport.Width = static_cast<float>(mClientWidth);
+	mScreenViewport.Height = static_cast<float>(mClientHeight);
+	mScreenViewport.MinDepth = 0.0f;
+	mScreenViewport.MaxDepth = 1.0f;
+
+	mScissorRect = { 0, 0, mClientWidth, mClientHeight };
+
+	// The window resized, so update the aspect ratio and recompute the projection matrix.
+	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
+	XMStoreFloat4x4(&mProj, P);
 }
