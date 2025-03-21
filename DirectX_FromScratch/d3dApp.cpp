@@ -443,8 +443,8 @@ int d3dApp::Run()
 				// END: Update - - - - - - - -
 
 				// START: Draw - - - - - - - -
-					// Reuse the memory associated with command recording.
-	// We can only reset when the associated command lists have finished execution on the GPU.
+				// Reuse the memory associated with command recording.
+				// We can only reset when the associated command lists have finished execution on the GPU.
 				ThrowIfFailed(mDirectCmdListAlloc->Reset());
 
 				// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
