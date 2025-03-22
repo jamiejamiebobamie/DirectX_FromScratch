@@ -94,6 +94,9 @@ public:
 
     static bool IsKeyDown(int vkeyCode);
 
+    static LPCWSTR convertIntToDisplayStr(int myInt);
+
+
     static std::string ToString(HRESULT hr);
 
     static UINT CalcConstantBufferByteSize(UINT byteSize)
@@ -286,3 +289,4 @@ struct Texture
 #ifndef ReleaseCom
 #define ReleaseCom(x) { if(x){ x->Release(); x = 0; } }
 #endif
+
