@@ -10,6 +10,8 @@ using namespace DirectX;
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 
+const int gNumFrameResources = 3;
+
 LRESULT CALLBACK
 MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -274,10 +276,10 @@ void d3dApp::BuildDescriptorHeaps()
 
 	// Need a CBV descriptor for each object for each frame resource,
 	// +1 for the perPass CBV for each frame resource.
-	UINT numDescriptors = (objCount + 1) * mNumFrameResources;
+	UINT numDescriptors = (objCount + 1) * gNumFrameResources;
 
 	// Save an offset to the start of the pass CBVs.  These are the last 3 descriptors.
-	mPassCbvOffset = objCount * mNumFrameResources;
+	mPassCbvOffset = objCount * gNumFrameResources;
 
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
 	cbvHeapDesc.NumDescriptors = numDescriptors;
@@ -295,7 +297,7 @@ void d3dApp::BuildConstantBufferViews()
 	UINT objCount = (UINT)mOpaqueRitems.size();
 
 	// Need a CBV descriptor for each object for each frame resource.
-	for (int frameIndex = 0; frameIndex < mNumFrameResources; ++frameIndex)
+	for (int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex)
 	{
 		auto objectCB = mFrameResources[frameIndex]->ObjectCB->Resource();
 		for (UINT i = 0; i < objCount; ++i)
@@ -321,7 +323,7 @@ void d3dApp::BuildConstantBufferViews()
 	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
 	// Last three descriptors are the pass CBVs for each frame resource.
-	for (int frameIndex = 0; frameIndex < mNumFrameResources; ++frameIndex)
+	for (int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex)
 	{
 		auto passCB = mFrameResources[frameIndex]->PassCB->Resource();
 		D3D12_GPU_VIRTUAL_ADDRESS cbAddress = passCB->GetGPUVirtualAddress();
@@ -534,7 +536,7 @@ void d3dApp::BuildPSOs()
 		mShaders["opaquePS"]->GetBufferSize()
 	};
 	opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.SampleMask = UINT_MAX;
@@ -558,7 +560,7 @@ void d3dApp::BuildPSOs()
 
 void d3dApp::BuildFrameResources()
 {
-	for (int i = 0; i < mNumFrameResources; ++i)
+	for (int i = 0; i < gNumFrameResources; ++i)
 	{
 		mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
 			1, (UINT)mAllRitems.size()));
@@ -601,7 +603,7 @@ void d3dApp::BuildRenderItems()
 		XMMATRIX leftSphereWorld = XMMatrixTranslation(-5.0f, 3.5f, -10.0f + i * 5.0f);
 		XMMATRIX rightSphereWorld = XMMatrixTranslation(+5.0f, 3.5f, -10.0f + i * 5.0f);
 
-		XMStoreFloat4x4(&leftCylRitem->World, rightCylWorld);
+		XMStoreFloat4x4(&leftCylRitem->World, leftCylWorld);
 		leftCylRitem->ObjCBIndex = objCBIndex++;
 		leftCylRitem->Geo = mGeometries["shapeGeo"].get();
 		leftCylRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -609,7 +611,7 @@ void d3dApp::BuildRenderItems()
 		leftCylRitem->StartIndexLocation = leftCylRitem->Geo->DrawArgs["cylinder"].StartIndexLocation;
 		leftCylRitem->BaseVertexLocation = leftCylRitem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
 
-		XMStoreFloat4x4(&rightCylRitem->World, leftCylWorld);
+		XMStoreFloat4x4(&rightCylRitem->World, rightCylWorld);
 		rightCylRitem->ObjCBIndex = objCBIndex++;
 		rightCylRitem->Geo = mGeometries["shapeGeo"].get();
 		rightCylRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -800,11 +802,10 @@ int d3dApp::Run()
 
 void d3dApp::Update(const GameTimer& gt)
 {
-	OnKeyboardInput(gt);
 	UpdateCamera(gt);
 
 	// Cycle through the circular frame resource array.
-	mCurrFrameResourceIndex = (mCurrFrameResourceIndex + 1) % mNumFrameResources;
+	mCurrFrameResourceIndex = (mCurrFrameResourceIndex + 1) % gNumFrameResources;
 	mCurrFrameResource = mFrameResources[mCurrFrameResourceIndex].get();
 
 	// Has the GPU finished processing the commands of the current frame resource?
@@ -853,8 +854,8 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
-	auto backBuff = CurrentBackBufferView();
-	auto dsvView = DepthStencilView();
+	D3D12_CPU_DESCRIPTOR_HANDLE backBuff = CurrentBackBufferView();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvView = DepthStencilView();
 	mCommandList->OMSetRenderTargets(1, &backBuff, true, &dsvView);
 
 	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvHeap.Get() };
@@ -863,7 +864,7 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
 	int passCbvIndex = mPassCbvOffset + mCurrFrameResourceIndex;
-	auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+	CD3DX12_GPU_DESCRIPTOR_HANDLE passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
 	passCbvHandle.Offset(passCbvIndex, mCbvSrvUavDescriptorSize);
 	mCommandList->SetGraphicsRootDescriptorTable(1, passCbvHandle);
 
@@ -937,14 +938,6 @@ void d3dApp::OnMouseMove(WPARAM btnState, int x, int y)
 
 	mLastMousePos.x = x;
 	mLastMousePos.y = y;
-}
-
-void d3dApp::OnKeyboardInput(const GameTimer& gt)
-{
-	if (GetAsyncKeyState('1') & 0x8000)
-		mIsWireframe = true;
-	else
-		mIsWireframe = false;
 }
 
 void d3dApp::UpdateCamera(const GameTimer& gt)
@@ -1137,8 +1130,11 @@ LRESULT d3dApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 			PostQuitMessage(0);
 		}
-		else if ((int)wParam == VK_F2) {
+		else if (wParam == VK_F2) {
 			Set4xMsaaState(!m4xMsaaState);
+		}
+		else if (wParam == VK_F1) {
+			mIsWireframe = !mIsWireframe;
 		}
 		return 0;
 	}

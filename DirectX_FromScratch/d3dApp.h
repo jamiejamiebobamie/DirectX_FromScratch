@@ -22,6 +22,7 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
+extern const int gNumFrameResources;
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
@@ -36,9 +37,9 @@ struct RenderItem
 
 	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
 	// Because we have an object cbuffer for each FrameResource, we have to apply the
-	// update to each FrameResource.  Thus, when we modify obect data we should set 
+	// update to each FrameResource.  Thus, when we modify object data we should set 
 	// NumFramesDirty = gNumFrameResources so that each frame resource gets the update.
-	int NumFramesDirty = 3;// gNumFrameResources; <-- fix hard-coded
+	int NumFramesDirty = gNumFrameResources;
 
 	// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
 	UINT ObjCBIndex = -1;
@@ -75,8 +76,8 @@ public:
 
 	int Run();
 
-	 bool Initialize();
-	 LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	bool Initialize();
+	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
 	void OnKeyboardInput(const GameTimer& gt);
@@ -131,10 +132,6 @@ private:
 	float mRadius = 15.0f;
 
 	POINT mLastMousePos;
-
-	const int mNumFrameResources = 3;
-
-
 
 protected:
 
