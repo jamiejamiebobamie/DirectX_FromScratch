@@ -133,7 +133,7 @@ bool d3dApp::InitDirect3D() {
 
 	HRESULT hardwareResult = D3D12CreateDevice(
 		nullptr,
-		D3D_FEATURE_LEVEL_11_0, // book has: D3D_FEATURE_LEVEL_11_0
+		D3D_FEATURE_LEVEL_11_0,
 		IID_PPV_ARGS(&md3dDevice));
 
 	if (FAILED(hardwareResult))
