@@ -96,6 +96,8 @@ public:
 
     static std::string ToString(HRESULT hr);
 
+    static LPCWSTR convertIntToDisplayStr(int myInt);
+
     static UINT CalcConstantBufferByteSize(UINT byteSize)
     {
         // Constant buffers must be a multiple of the minimum hardware
