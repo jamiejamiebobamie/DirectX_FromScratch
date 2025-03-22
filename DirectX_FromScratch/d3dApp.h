@@ -3,6 +3,7 @@
 #include "framework.h"
 #include "resource.h"
 #include <WindowsX.h>
+#include <XInput.h>
 #include "MathHelper.h"
 #include "UploadBuffer.h"
 using Microsoft::WRL::ComPtr;
@@ -18,13 +19,15 @@ using namespace DirectX::PackedVector;
 
 #include "d3dUtil.h"
 #include "GameTimer.h"
+#include "MyGameInput.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
+//#pragma comment(lib, "xinput.lib")
+#pragma comment(lib, "gameinput.lib")
 #pragma comment(lib, "dxguid.lib")
-
 
 struct VertexPosData
 {
@@ -113,6 +116,7 @@ protected:
 	UINT m4xMsaaQuality = 0; // quality level of 4X MSAA
 
 	GameTimer mTimer;
+	MyGameInput mGameInput;
 
 	Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory;
 	Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
@@ -185,5 +189,6 @@ private:
 	float mTargetDelta = 3.0f;
 	double mScrollEpsilon = 0.000001f;
 	float mScrollStartTime = 0.0f;
+
 };
 

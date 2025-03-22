@@ -1,4 +1,4 @@
-
+#pragma once
 #include "d3dUtil.h"
 #include <comdef.h>
 #include <strsafe.h>
