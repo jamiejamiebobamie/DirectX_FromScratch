@@ -133,6 +133,8 @@ private:
 
 	POINT mLastMousePos;
 
+	int mSkullRitemIndex = -1; // store the index of the skull in the render items vector
+
 protected:
 
 	 void CreateRtvAndDsvDescriptorHeaps();

@@ -344,17 +344,13 @@ void d3dApp::BuildConstantBufferViews()
 
 void d3dApp::BuildRootSignature()
 {
-	CD3DX12_DESCRIPTOR_RANGE cbvTable0;
-	cbvTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-
-	CD3DX12_DESCRIPTOR_RANGE cbvTable1;
-	cbvTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
-
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[2];
 
-	// Create root CBVs.
-	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable0);
+	slotRootParameter[0].InitAsConstants(16, 0, 0);
+
+	CD3DX12_DESCRIPTOR_RANGE cbvTable1;
+	cbvTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
 	slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable1);
 
 	// A root signature is an array of root parameters.
@@ -397,8 +393,9 @@ void d3dApp::BuildShapeGeometry()
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData box = geoGen.CreateBox(1.5f, 0.5f, 1.5f, 3);
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 60, 40);
-	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 20, 20);
+	GeometryGenerator::MeshData sphere = geoGen.CreateGeosphere(0.5f, 2);
 	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.3f, 3.0f, 20, 20);
+	GeometryGenerator::MeshData skull = geoGen.CreateSkull();
 
 	//
 	// We are concatenating all the geometry into one big vertex/index buffer.  So
@@ -410,12 +407,15 @@ void d3dApp::BuildShapeGeometry()
 	UINT gridVertexOffset = (UINT)box.Vertices.size();
 	UINT sphereVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
 	UINT cylinderVertexOffset = sphereVertexOffset + (UINT)sphere.Vertices.size();
+	UINT skullVertexOffset = cylinderVertexOffset + (UINT)cylinder.Vertices.size();
+
 
 	// Cache the starting index for each object in the concatenated index buffer.
 	UINT boxIndexOffset = 0;
 	UINT gridIndexOffset = (UINT)box.Indices32.size();
 	UINT sphereIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
 	UINT cylinderIndexOffset = sphereIndexOffset + (UINT)sphere.Indices32.size();
+	UINT skullIndexOffset = cylinderIndexOffset + (UINT)cylinder.Indices32.size();
 
 	// Define the SubmeshGeometry that cover different 
 	// regions of the vertex/index buffers.
@@ -440,6 +440,11 @@ void d3dApp::BuildShapeGeometry()
 	cylinderSubmesh.StartIndexLocation = cylinderIndexOffset;
 	cylinderSubmesh.BaseVertexLocation = cylinderVertexOffset;
 
+	SubmeshGeometry skullSubmesh;
+	skullSubmesh.IndexCount = (UINT)skull.Indices32.size();
+	skullSubmesh.StartIndexLocation = skullIndexOffset;
+	skullSubmesh.BaseVertexLocation = skullVertexOffset;
+
 	//
 	// Extract the vertex elements we are interested in and pack the
 	// vertices of all the meshes into one vertex buffer.
@@ -449,7 +454,8 @@ void d3dApp::BuildShapeGeometry()
 		box.Vertices.size() +
 		grid.Vertices.size() +
 		sphere.Vertices.size() +
-		cylinder.Vertices.size();
+		cylinder.Vertices.size() +
+		skull.Vertices.size();
 
 	std::vector<Vertex> vertices(totalVertexCount);
 
@@ -478,11 +484,19 @@ void d3dApp::BuildShapeGeometry()
 		vertices[k].Color = XMFLOAT4(DirectX::Colors::SteelBlue);
 	}
 
+	for (size_t i = 0; i < skull.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = skull.Vertices[i].Position;
+		vertices[k].Color = XMFLOAT4(DirectX::Colors::Black);
+	}
+
 	std::vector<std::uint16_t> indices;
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
 	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
 	indices.insert(indices.end(), std::begin(cylinder.GetIndices16()), std::end(cylinder.GetIndices16()));
+	indices.insert(indices.end(), std::begin(skull.GetIndices16()), std::end(skull.GetIndices16()));
+
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -511,6 +525,7 @@ void d3dApp::BuildShapeGeometry()
 	geo->DrawArgs["grid"] = gridSubmesh;
 	geo->DrawArgs["sphere"] = sphereSubmesh;
 	geo->DrawArgs["cylinder"] = cylinderSubmesh;
+	geo->DrawArgs["skull"] = skullSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -589,7 +604,19 @@ void d3dApp::BuildRenderItems()
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 	mAllRitems.push_back(std::move(gridRitem));
 
-	UINT objCBIndex = 2;
+	auto skullRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&skullRitem->World, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(0.0f, 1.0f, 0.0f));
+	skullRitem->ObjCBIndex = 2;
+	skullRitem->Geo = mGeometries["shapeGeo"].get();
+	skullRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
+	skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
+	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(skullRitem));
+
+	mSkullRitemIndex = mAllRitems.size() - 1;
+
+	UINT objCBIndex = 3;
 	for (int i = 0; i < 5; ++i)
 	{
 		auto leftCylRitem = std::make_unique<RenderItem>();
@@ -664,13 +691,15 @@ void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vect
 		cmdList->IASetIndexBuffer(&ibView);
 		cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-		// Offset to the CBV in the descriptor heap for this object and for this frame resource.
-		UINT cbvIndex = mCurrFrameResourceIndex * (UINT)mOpaqueRitems.size() + ri->ObjCBIndex;
-		auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-		cbvHandle.Offset(cbvIndex, mCbvSrvUavDescriptorSize);
+		//// Offset to the CBV in the descriptor heap for this object and for this frame resource.
+		//UINT cbvIndex = mCurrFrameResourceIndex * (UINT)mOpaqueRitems.size() + ri->ObjCBIndex;
+		//auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+		//cbvHandle.Offset(cbvIndex, mCbvSrvUavDescriptorSize);
 
-		cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+		// static_cast<int>((float)(objCBByteSize * 8)/32.0f)
 
+		XMFLOAT4X4 world = ri->World;
+		cmdList->SetGraphicsRoot32BitConstants(0, 16, &world, 0);
 		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
 }
@@ -959,21 +988,29 @@ void d3dApp::UpdateCamera(const GameTimer& gt)
 void d3dApp::UpdateObjectCBs(const GameTimer& gt)
 {
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
-	for (auto& e : mAllRitems)
+	for (int i = 0; i < mAllRitems.size(); i++)//auto& e : mAllRitems)
 	{
+		if (i == mSkullRitemIndex) {
+			// MathHelper::Pi * 2.0f * (sin(mTimer.TotalTime()) + 1.0f) / 2.0f)
+			XMMATRIX worldMatrix = XMLoadFloat4x4(&mAllRitems[i]->World);
+			XMMATRIX rotatedMatrix = XMMatrixAffineTransformation(XMVectorSet(0.5f, 0.5f, 0.5f, 0.5f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMQuaternionRotationNormal(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), (float)((int)mTimer.TotalTime() % 720)/(MathHelper::Pi * 4.0f)), XMVectorSet(worldMatrix.r[3].m128_f32[0], worldMatrix.r[3].m128_f32[1], worldMatrix.r[3].m128_f32[2], worldMatrix.r[3].m128_f32[3]));//worldMatrix * XMMatrixRotationY(MathHelper::Pi * 0.01f);
+			//XMMATRIX rotated = MathHelper::Lerp(worldMatrix, rotatedMatrix, (sin(mTimer.TotalTime()) + 1.0f)/2.0f);
+			XMStoreFloat4x4(&mAllRitems[i]->World, rotatedMatrix);
+		}
 		// Only update the cbuffer data if the constants have changed.  
 		// This needs to be tracked per frame resource.
-		if (e->NumFramesDirty > 0)
+		if (mAllRitems[i]->NumFramesDirty > 0)
 		{
-			XMMATRIX world = XMLoadFloat4x4(&e->World);
 
+			XMMATRIX world;
+			world = XMLoadFloat4x4(&mAllRitems[i]->World);
 			ObjectConstants objConstants;
 			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 
-			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
+			currObjectCB->CopyData(mAllRitems[i]->ObjCBIndex, objConstants);
 
 			// Next FrameResource need to be updated too.
-			e->NumFramesDirty--;
+			mAllRitems[i]->NumFramesDirty--;
 		}
 	}
 }
