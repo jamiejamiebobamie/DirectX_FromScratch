@@ -1,47 +1,52 @@
-#pragma once
 //--------------------------------------------------------------------------------------
 // File: DDSTextureLoader.h
 //
-// Functions for loading a DDS texture and creating a Direct3D runtime resource for it
+// Functions for loading a DDS texture and creating a Direct3D 11 runtime resource for it
 //
 // Note these functions are useful as a light-weight runtime loader for DDS files. For
 // a full-featured DDS file reader, writer, and texture processing pipeline see
 // the 'Texconv' sample and the 'DirectXTex' library.
 //
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
+// ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
+// PARTICULAR PURPOSE.
+//
+// Copyright (c) Microsoft Corporation. All rights reserved.
 //
 // http://go.microsoft.com/fwlink/?LinkId=248926
 // http://go.microsoft.com/fwlink/?LinkId=248929
 //--------------------------------------------------------------------------------------
 
+#ifdef _MSC_VER
 #pragma once
+#endif
 
-#if defined(_XBOX_ONE) && defined(_TITLE)
-#include <d3d11_x.h>
-#else
+#include <wrl.h>
 #include <d3d11_1.h>
+#include "d3dx12.h"
+
+#pragma warning(push)
+#pragma warning(disable : 4005)
+#include <stdint.h>
+
+#pragma warning(pop)
+
+#if defined(_MSC_VER) && (_MSC_VER<1610) && !defined(_In_reads_)
+#define _In_reads_(exp)
+#define _Out_writes_(exp)
+#define _In_reads_bytes_(exp)
+#define _In_reads_opt_(exp)
+#define _Outptr_opt_
 #endif
 
-#include <cstddef>
-#include <cstdint>
-
-#ifndef DIRECTX_TOOLKIT_API
-#ifdef DIRECTX_TOOLKIT_EXPORT
-#define DIRECTX_TOOLKIT_API __declspec(dllexport)
-#elif defined(DIRECTX_TOOLKIT_IMPORT)
-#define DIRECTX_TOOLKIT_API __declspec(dllimport)
-#else
-#define DIRECTX_TOOLKIT_API
+#ifndef _Use_decl_annotations_
+#define _Use_decl_annotations_
 #endif
-#endif
-
 
 namespace DirectX
 {
-#ifndef DDS_ALPHA_MODE_DEFINED
-#define DDS_ALPHA_MODE_DEFINED
-    enum DDS_ALPHA_MODE : uint32_t
+    enum DDS_ALPHA_MODE
     {
         DDS_ALPHA_MODE_UNKNOWN = 0,
         DDS_ALPHA_MODE_STRAIGHT = 1,
@@ -49,230 +54,119 @@ namespace DirectX
         DDS_ALPHA_MODE_OPAQUE = 3,
         DDS_ALPHA_MODE_CUSTOM = 4,
     };
-#endif
-
-    inline namespace DX11
-    {
-        enum DDS_LOADER_FLAGS : uint32_t
-        {
-            DDS_LOADER_DEFAULT = 0,
-            DDS_LOADER_FORCE_SRGB = 0x1,
-            DDS_LOADER_IGNORE_SRGB = 0x2,
-            DDS_LOADER_IGNORE_MIPS = 0x20,
-        };
-    }
 
     // Standard version
-    DIRECTX_TOOLKIT_API
-        HRESULT __cdecl CreateDDSTextureFromMemory(
-            _In_ ID3D11Device* d3dDevice,
-            _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
-            _In_ size_t ddsDataSize,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _In_ size_t maxsize = 0,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept;
+    HRESULT CreateDDSTextureFromMemory(_In_ ID3D11Device* d3dDevice,
+        _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
+        _In_ size_t ddsDataSize,
+        _Outptr_opt_ ID3D11Resource** texture,
+        _Outptr_opt_ ID3D11ShaderResourceView** textureView,
+        _In_ size_t maxsize = 0,
+        _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
+    );
 
-    DIRECTX_TOOLKIT_API
-        HRESULT __cdecl CreateDDSTextureFromFile(
-            _In_ ID3D11Device* d3dDevice,
-            _In_z_ const wchar_t* szFileName,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _In_ size_t maxsize = 0,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept;
+    HRESULT CreateDDSTextureFromMemory12(_In_ ID3D12Device* device,
+        _In_ ID3D12GraphicsCommandList* cmdList,
+        _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
+        _In_ size_t ddsDataSize,
+        _Out_ Microsoft::WRL::ComPtr<ID3D12Resource>& texture,
+        _Out_ Microsoft::WRL::ComPtr<ID3D12Resource>& textureUploadHeap,
+        _In_ size_t maxsize = 0,
+        _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
+    );
+
+    HRESULT CreateDDSTextureFromFile(_In_ ID3D11Device* d3dDevice,
+        _In_z_ const wchar_t* szFileName,
+        _Outptr_opt_ ID3D11Resource** texture,
+        _Outptr_opt_ ID3D11ShaderResourceView** textureView,
+        _In_ size_t maxsize = 0,
+        _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
+    );
+
+    HRESULT CreateDDSTextureFromFile12(_In_ ID3D12Device* device,
+        _In_ ID3D12GraphicsCommandList* cmdList,
+        _In_z_ const wchar_t* szFileName,
+        _Out_ Microsoft::WRL::ComPtr<ID3D12Resource>& texture,
+        _Out_ Microsoft::WRL::ComPtr<ID3D12Resource>& textureUploadHeap,
+        _In_ size_t maxsize = 0,
+        _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
+    );
 
     // Standard version with optional auto-gen mipmap support
-    DIRECTX_TOOLKIT_API
-        HRESULT __cdecl CreateDDSTextureFromMemory(
-#if defined(_XBOX_ONE) && defined(_TITLE)
-            _In_ ID3D11DeviceX* d3dDevice,
-            _In_opt_ ID3D11DeviceContextX* d3dContext,
-#else
-            _In_ ID3D11Device* d3dDevice,
-            _In_opt_ ID3D11DeviceContext* d3dContext,
-#endif
-            _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
-            _In_ size_t ddsDataSize,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _In_ size_t maxsize = 0,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept;
+    HRESULT CreateDDSTextureFromMemory(_In_ ID3D11Device* d3dDevice,
+        _In_opt_ ID3D11DeviceContext* d3dContext,
+        _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
+        _In_ size_t ddsDataSize,
+        _Outptr_opt_ ID3D11Resource** texture,
+        _Outptr_opt_ ID3D11ShaderResourceView** textureView,
+        _In_ size_t maxsize = 0,
+        _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
+    );
 
-    DIRECTX_TOOLKIT_API
-        HRESULT __cdecl CreateDDSTextureFromFile(
-#if defined(_XBOX_ONE) && defined(_TITLE)
-            _In_ ID3D11DeviceX* d3dDevice,
-            _In_opt_ ID3D11DeviceContextX* d3dContext,
-#else
-            _In_ ID3D11Device* d3dDevice,
-            _In_opt_ ID3D11DeviceContext* d3dContext,
-#endif
-            _In_z_ const wchar_t* szFileName,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _In_ size_t maxsize = 0,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept;
+    HRESULT CreateDDSTextureFromFile(_In_ ID3D11Device* d3dDevice,
+        _In_opt_ ID3D11DeviceContext* d3dContext,
+        _In_z_ const wchar_t* szFileName,
+        _Outptr_opt_ ID3D11Resource** texture,
+        _Outptr_opt_ ID3D11ShaderResourceView** textureView,
+        _In_ size_t maxsize = 0,
+        _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
+    );
 
     // Extended version
-    DIRECTX_TOOLKIT_API
-        HRESULT __cdecl CreateDDSTextureFromMemoryEx(
-            _In_ ID3D11Device* d3dDevice,
-            _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
-            _In_ size_t ddsDataSize,
-            _In_ size_t maxsize,
-            _In_ D3D11_USAGE usage,
-            _In_ unsigned int bindFlags,
-            _In_ unsigned int cpuAccessFlags,
-            _In_ unsigned int miscFlags,
-            _In_ DDS_LOADER_FLAGS loadFlags,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept;
+    HRESULT CreateDDSTextureFromMemoryEx(_In_ ID3D11Device* d3dDevice,
+        _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
+        _In_ size_t ddsDataSize,
+        _In_ size_t maxsize,
+        _In_ D3D11_USAGE usage,
+        _In_ unsigned int bindFlags,
+        _In_ unsigned int cpuAccessFlags,
+        _In_ unsigned int miscFlags,
+        _In_ bool forceSRGB,
+        _Outptr_opt_ ID3D11Resource** texture,
+        _Outptr_opt_ ID3D11ShaderResourceView** textureView,
+        _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
+    );
 
-    DIRECTX_TOOLKIT_API
-        HRESULT __cdecl CreateDDSTextureFromFileEx(
-            _In_ ID3D11Device* d3dDevice,
-            _In_z_ const wchar_t* szFileName,
-            _In_ size_t maxsize,
-            _In_ D3D11_USAGE usage,
-            _In_ unsigned int bindFlags,
-            _In_ unsigned int cpuAccessFlags,
-            _In_ unsigned int miscFlags,
-            _In_ DDS_LOADER_FLAGS loadFlags,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept;
+    HRESULT CreateDDSTextureFromFileEx(_In_ ID3D11Device* d3dDevice,
+        _In_z_ const wchar_t* szFileName,
+        _In_ size_t maxsize,
+        _In_ D3D11_USAGE usage,
+        _In_ unsigned int bindFlags,
+        _In_ unsigned int cpuAccessFlags,
+        _In_ unsigned int miscFlags,
+        _In_ bool forceSRGB,
+        _Outptr_opt_ ID3D11Resource** texture,
+        _Outptr_opt_ ID3D11ShaderResourceView** textureView,
+        _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
+    );
 
     // Extended version with optional auto-gen mipmap support
-    DIRECTX_TOOLKIT_API
-        HRESULT __cdecl CreateDDSTextureFromMemoryEx(
-#if defined(_XBOX_ONE) && defined(_TITLE)
-            _In_ ID3D11DeviceX* d3dDevice,
-            _In_opt_ ID3D11DeviceContextX* d3dContext,
-#else
-            _In_ ID3D11Device* d3dDevice,
-            _In_opt_ ID3D11DeviceContext* d3dContext,
-#endif
-            _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
-            _In_ size_t ddsDataSize,
-            _In_ size_t maxsize,
-            _In_ D3D11_USAGE usage,
-            _In_ unsigned int bindFlags,
-            _In_ unsigned int cpuAccessFlags,
-            _In_ unsigned int miscFlags,
-            _In_ DDS_LOADER_FLAGS loadFlags,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept;
+    HRESULT CreateDDSTextureFromMemoryEx(_In_ ID3D11Device* d3dDevice,
+        _In_opt_ ID3D11DeviceContext* d3dContext,
+        _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
+        _In_ size_t ddsDataSize,
+        _In_ size_t maxsize,
+        _In_ D3D11_USAGE usage,
+        _In_ unsigned int bindFlags,
+        _In_ unsigned int cpuAccessFlags,
+        _In_ unsigned int miscFlags,
+        _In_ bool forceSRGB,
+        _Outptr_opt_ ID3D11Resource** texture,
+        _Outptr_opt_ ID3D11ShaderResourceView** textureView,
+        _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
+    );
 
-    DIRECTX_TOOLKIT_API
-        HRESULT __cdecl CreateDDSTextureFromFileEx(
-#if defined(_XBOX_ONE) && defined(_TITLE)
-            _In_ ID3D11DeviceX* d3dDevice,
-            _In_opt_ ID3D11DeviceContextX* d3dContext,
-#else
-            _In_ ID3D11Device* d3dDevice,
-            _In_opt_ ID3D11DeviceContext* d3dContext,
-#endif
-            _In_z_ const wchar_t* szFileName,
-            _In_ size_t maxsize,
-            _In_ D3D11_USAGE usage,
-            _In_ unsigned int bindFlags,
-            _In_ unsigned int cpuAccessFlags,
-            _In_ unsigned int miscFlags,
-            _In_ DDS_LOADER_FLAGS loadFlags,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept;
-
-#ifdef __cpp_lib_byte
-    DIRECTX_TOOLKIT_API
-        inline HRESULT __cdecl CreateDDSTextureFromMemory(
-            _In_ ID3D11Device* d3dDevice,
-            _In_reads_bytes_(ddsDataSize) const std::byte* ddsData,
-            _In_ size_t ddsDataSize,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _In_ size_t maxsize = 0,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept
-    {
-        return CreateDDSTextureFromMemory(d3dDevice, reinterpret_cast<const uint8_t*>(ddsData), ddsDataSize, texture, textureView, maxsize, alphaMode);
-    }
-
-    DIRECTX_TOOLKIT_API
-        inline HRESULT __cdecl CreateDDSTextureFromMemory(
-#if defined(_XBOX_ONE) && defined(_TITLE)
-            _In_ ID3D11DeviceX* d3dDevice,
-            _In_opt_ ID3D11DeviceContextX* d3dContext,
-#else
-            _In_ ID3D11Device* d3dDevice,
-            _In_opt_ ID3D11DeviceContext* d3dContext,
-#endif
-            _In_reads_bytes_(ddsDataSize) const std::byte* ddsData,
-            _In_ size_t ddsDataSize,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _In_ size_t maxsize = 0,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept
-    {
-        return CreateDDSTextureFromMemory(d3dDevice, d3dContext, reinterpret_cast<const uint8_t*>(ddsData), ddsDataSize, texture, textureView, maxsize, alphaMode);
-    }
-
-    DIRECTX_TOOLKIT_API
-        inline HRESULT __cdecl CreateDDSTextureFromMemoryEx(
-            _In_ ID3D11Device* d3dDevice,
-            _In_reads_bytes_(ddsDataSize) const std::byte* ddsData,
-            _In_ size_t ddsDataSize,
-            _In_ size_t maxsize,
-            _In_ D3D11_USAGE usage,
-            _In_ unsigned int bindFlags,
-            _In_ unsigned int cpuAccessFlags,
-            _In_ unsigned int miscFlags,
-            _In_ DDS_LOADER_FLAGS loadFlags,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept
-    {
-        return CreateDDSTextureFromMemoryEx(d3dDevice, reinterpret_cast<const uint8_t*>(ddsData), ddsDataSize, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, loadFlags, texture, textureView, alphaMode);
-    }
-
-    DIRECTX_TOOLKIT_API
-        inline HRESULT __cdecl CreateDDSTextureFromMemoryEx(
-#if defined(_XBOX_ONE) && defined(_TITLE)
-            _In_ ID3D11DeviceX* d3dDevice,
-            _In_opt_ ID3D11DeviceContextX* d3dContext,
-#else
-            _In_ ID3D11Device* d3dDevice,
-            _In_opt_ ID3D11DeviceContext* d3dContext,
-#endif
-            _In_reads_bytes_(ddsDataSize) const std::byte* ddsData,
-            _In_ size_t ddsDataSize,
-            _In_ size_t maxsize,
-            _In_ D3D11_USAGE usage,
-            _In_ unsigned int bindFlags,
-            _In_ unsigned int cpuAccessFlags,
-            _In_ unsigned int miscFlags,
-            _In_ DDS_LOADER_FLAGS loadFlags,
-            _Outptr_opt_ ID3D11Resource** texture,
-            _Outptr_opt_ ID3D11ShaderResourceView** textureView,
-            _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr) noexcept
-    {
-        return CreateDDSTextureFromMemoryEx(d3dDevice, d3dContext, reinterpret_cast<const uint8_t*>(ddsData), ddsDataSize, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, loadFlags, texture, textureView, alphaMode);
-    }
-#endif // __cpp_lib_byte
-
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-dynamic-exception-spec"
-#endif
-
-    inline namespace DX11
-    {
-        DEFINE_ENUM_FLAG_OPERATORS(DDS_LOADER_FLAGS)
-    }
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+    HRESULT CreateDDSTextureFromFileEx(_In_ ID3D11Device* d3dDevice,
+        _In_opt_ ID3D11DeviceContext* d3dContext,
+        _In_z_ const wchar_t* szFileName,
+        _In_ size_t maxsize,
+        _In_ D3D11_USAGE usage,
+        _In_ unsigned int bindFlags,
+        _In_ unsigned int cpuAccessFlags,
+        _In_ unsigned int miscFlags,
+        _In_ bool forceSRGB,
+        _Outptr_opt_ ID3D11Resource** texture,
+        _Outptr_opt_ ID3D11ShaderResourceView** textureView,
+        _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
+    );
 }
