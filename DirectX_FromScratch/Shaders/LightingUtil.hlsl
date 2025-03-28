@@ -67,10 +67,7 @@ float3 ComputeDirectionalLight(Light L, Material mat, float3 normal, float3 toEy
     float3 lightVec = -L.Direction;
 
     // Scale light down by Lambert's cosine law.
-    float ndotl = max(dot(lightVec, normal), 0.0f);
-    
-    ndotl = ndotl > 0.75f ? ndotl : ndotl > 0.5f ? 0.75f : ndotl > 0.25f ? 0.5f : ndotl > 0.25f ? 0.25f : 0.0f; // make toon lighting
-    
+    float ndotl = max(dot(lightVec, normal), 0.0f);    
     float3 lightStrength = L.Strength * ndotl;
 
     return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
@@ -96,9 +93,6 @@ float3 ComputePointLight(Light L, Material mat, float3 pos, float3 normal, float
 
     // Scale light down by Lambert's cosine law.
     float ndotl = max(dot(lightVec, normal), 0.0f);
-    
-    ndotl = ndotl > 0.75f ? ndotl : ndotl > 0.5f ? 0.75f : ndotl > 0.25f ? 0.5f : ndotl > 0.25f ? 0.25f : 0.0f; // make toon lighting
-
     float3 lightStrength = L.Strength * ndotl;
 
     // Attenuate light by distance.
@@ -127,10 +121,7 @@ float3 ComputeSpotLight(Light L, Material mat, float3 pos, float3 normal, float3
     lightVec /= d;
 
     // Scale light down by Lambert's cosine law.
-    float ndotl = max(dot(lightVec, normal), 0.0f);
-    
-    ndotl = ndotl > 0.75f ? ndotl : ndotl > 0.5f ? 0.75f : ndotl > 0.25f ? 0.5f : ndotl > 0.25f ? 0.25f : 0.0f; // make toon lighting
-    
+    float ndotl = max(dot(lightVec, normal), 0.0f);    
     float3 lightStrength = L.Strength * ndotl;
 
     // Attenuate light by distance.
