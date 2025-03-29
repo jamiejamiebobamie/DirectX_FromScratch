@@ -277,7 +277,7 @@ void d3dApp::CreateRtvAndDsvDescriptorHeaps()
 void d3dApp::BuildRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE texTable;
-	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0);
 
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
@@ -320,7 +320,7 @@ void d3dApp::BuildDescriptorHeaps()
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 1;
+	srvHeapDesc.NumDescriptors = 3;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -330,7 +330,7 @@ void d3dApp::BuildDescriptorHeaps()
 	//
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-	auto woodCrateTex = mTextures["woodCrateTex"]->Resource;
+	auto woodCrateTex = mTextures["woodCrateTex02"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -341,6 +341,31 @@ void d3dApp::BuildDescriptorHeaps()
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
 	md3dDevice->CreateShaderResourceView(woodCrateTex.Get(), &srvDesc, hDescriptor);
+
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	auto wireFenceTex = mTextures["wireFenceTex"]->Resource;
+
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = wireFenceTex->GetDesc().Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = wireFenceTex->GetDesc().MipLevels;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+	md3dDevice->CreateShaderResourceView(wireFenceTex.Get(), &srvDesc, hDescriptor);
+
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	auto waterTex = mTextures["water1"]->Resource;
+
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = waterTex->GetDesc().Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = waterTex->GetDesc().MipLevels;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	md3dDevice->CreateShaderResourceView(waterTex.Get(), &srvDesc, hDescriptor);
 }
 
 void d3dApp::BuildShadersAndInputLayout()
@@ -360,21 +385,25 @@ void d3dApp::BuildShapeGeometry()
 {
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData box = geoGen.CreateBox(1.0f, 1.0f, 1.0f, 3);
-
-	UINT boxVertexOffset = 0;
-
-	// Cache the starting index for each object in the concatenated index buffer.
-	UINT boxIndexOffset = 0;
+	GeometryGenerator::MeshData skull = geoGen.CreateSkull();
 
 	// Define the SubmeshGeometry that cover different 
 	// regions of the vertex/index buffers.
 
 	SubmeshGeometry boxSubmesh;
 	boxSubmesh.IndexCount = (UINT)box.Indices32.size();
-	boxSubmesh.StartIndexLocation = boxIndexOffset;
-	boxSubmesh.BaseVertexLocation = boxVertexOffset;
+	boxSubmesh.StartIndexLocation = 0;
+	boxSubmesh.BaseVertexLocation = 0;
 
-	auto totalVertexCount = box.Vertices.size();
+	UINT skullVertexOffset = box.Vertices.size();
+	UINT skullIndexOffset = box.Indices32.size();
+
+	SubmeshGeometry skullSubmesh;
+	skullSubmesh.IndexCount = (UINT)skull.Indices32.size();
+	skullSubmesh.StartIndexLocation = skullIndexOffset;
+	skullSubmesh.BaseVertexLocation = skullVertexOffset;
+
+	auto totalVertexCount = box.Vertices.size() + skull.Vertices.size();
 
 	std::vector<Vertex> vertices(totalVertexCount);
 
@@ -383,18 +412,26 @@ void d3dApp::BuildShapeGeometry()
 	{
 		vertices[k].Pos = box.Vertices[i].Position;
 		vertices[k].Normal = box.Vertices[i].Normal;
-		vertices[i].TexC = box.Vertices[i].TexC;
+		vertices[k].TexC = box.Vertices[i].TexC;
+	}
+
+	for (size_t i = 0; i < skull.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = skull.Vertices[i].Position;
+		vertices[k].Normal = skull.Vertices[i].Normal;
+		vertices[k].TexC = skull.Vertices[i].TexC;
 	}
 
 
 	std::vector<std::uint16_t> indices;
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
+	indices.insert(indices.end(), std::begin(skull.GetIndices16()), std::end(skull.GetIndices16()));
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
 	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "boxGeo";
+	geo->Name = "geo";
 
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
 	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
@@ -414,6 +451,7 @@ void d3dApp::BuildShapeGeometry()
 	geo->IndexBufferByteSize = ibByteSize;
 
 	geo->DrawArgs["box"] = boxSubmesh;
+	geo->DrawArgs["skull"] = skullSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -484,17 +522,26 @@ void d3dApp::BuildMaterials()
 	woodCrate->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
 	woodCrate->Roughness = 0.2f;
 
-	//auto stone0 = std::make_unique<Material>();
-	//stone0->Name = "stone0";
-	//stone0->MatCBIndex = 1;
-	//stone0->DiffuseSrvHeapIndex = 1;
-	//stone0->DiffuseAlbedo = XMFLOAT4(Colors::LavenderBlush);
-	//stone0->FresnelR0 = XMFLOAT3(2.65f, 2.65f, 2.65f);
-	//stone0->Roughness = 0.1f;
+	auto stone0 = std::make_unique<Material>();
+	stone0->Name = "stone0";
+	stone0->MatCBIndex = 1;
+	stone0->DiffuseSrvHeapIndex = 1;
+	stone0->DiffuseAlbedo = XMFLOAT4(Colors::LavenderBlush);
+	stone0->FresnelR0 = XMFLOAT3(2.65f, 2.65f, 2.65f);
+	stone0->Roughness = 0.1f;
 
+	auto water = std::make_unique<Material>();
+	water->Name = "water";
+	water->MatCBIndex = 2; // material c_buffer index
+	water->DiffuseSrvHeapIndex = 2; // tex desc heap
+	water->DiffuseAlbedo = XMFLOAT4(Colors::LavenderBlush);
+	water->FresnelR0 = XMFLOAT3(1.33f, 1.33f, 1.33f);
+	water->Roughness = 0.3f;
 
 	mMaterials["woodCrate"] = std::move(woodCrate);
-	//mMaterials["stone0"] = std::move(stone0);
+	mMaterials["stone0"] = std::move(stone0);
+	mMaterials["water"] = std::move(water);
+
 }
 
 void d3dApp::BuildRenderItems()
@@ -502,13 +549,38 @@ void d3dApp::BuildRenderItems()
 	auto boxRitem = std::make_unique<RenderItem>();
 	boxRitem->ObjCBIndex = 0;
 	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f));
+	boxRitem->isWater = false;
 	boxRitem->Mat = mMaterials["woodCrate"].get();
-	boxRitem->Geo = mGeometries["boxGeo"].get();
+	boxRitem->Geo = mGeometries["geo"].get();
 	boxRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["box"].IndexCount;
 	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
 	mAllRitems.push_back(std::move(boxRitem));
+
+	auto boxRitem2 = std::make_unique<RenderItem>();
+	boxRitem2->ObjCBIndex = 1;
+	XMStoreFloat4x4(&boxRitem2->World, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(-2.5f, 0.0f, -2.5f));
+	boxRitem2->isWater = false;
+	boxRitem2->Mat = mMaterials["stone0"].get();
+	boxRitem2->Geo = mGeometries["geo"].get();
+	boxRitem2->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	boxRitem2->IndexCount = boxRitem2->Geo->DrawArgs["box"].IndexCount;
+	boxRitem2->StartIndexLocation = boxRitem2->Geo->DrawArgs["box"].StartIndexLocation;
+	boxRitem2->BaseVertexLocation = boxRitem2->Geo->DrawArgs["box"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(boxRitem2));
+
+	auto boxRitem3 = std::make_unique<RenderItem>();
+	boxRitem3->ObjCBIndex = 2;
+	XMStoreFloat4x4(&boxRitem3->World, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(2.5f, 0.0f, 2.5f));
+	boxRitem3->isWater = true;
+	boxRitem3->Mat = mMaterials["water"].get();
+	boxRitem3->Geo = mGeometries["geo"].get();
+	boxRitem3->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	boxRitem3->IndexCount = boxRitem3->Geo->DrawArgs["skull"].IndexCount;
+	boxRitem3->StartIndexLocation = boxRitem3->Geo->DrawArgs["skull"].StartIndexLocation;
+	boxRitem3->BaseVertexLocation = boxRitem3->Geo->DrawArgs["skull"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(boxRitem3));
 
 	// All the render items are opaque.
 	for (auto& e : mAllRitems)
@@ -900,6 +972,7 @@ void d3dApp::UpdateObjectCBs(const GameTimer& gt)
 			ObjectConstants objConstants;
 			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 			XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
+			objConstants.isWater = false;//&e->isWater;
 
 			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
 
@@ -975,14 +1048,32 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 
 void d3dApp::LoadTextures()
 {
+	auto wireFenceTex = std::make_unique<Texture>();
+	wireFenceTex->Name = "wireFenceTex";
+	wireFenceTex->Filename = L"Textures/WireFence.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), wireFenceTex->Filename.c_str(),
+		wireFenceTex->Resource, wireFenceTex->UploadHeap));
+
+	mTextures[wireFenceTex->Name] = std::move(wireFenceTex);
+
 	auto woodCrateTex = std::make_unique<Texture>();
-	woodCrateTex->Name = "woodCrateTex";
-	woodCrateTex->Filename = L"Textures/WireFence.dds";
+	woodCrateTex->Name = "woodCrateTex02";
+	woodCrateTex->Filename = L"Textures/WoodCrate02.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), woodCrateTex->Filename.c_str(),
 		woodCrateTex->Resource, woodCrateTex->UploadHeap));
 
 	mTextures[woodCrateTex->Name] = std::move(woodCrateTex);
+
+	auto waterTex = std::make_unique<Texture>();
+	waterTex->Name = "water1";
+	waterTex->Filename = L"Textures/water1.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), waterTex->Filename.c_str(),
+		waterTex->Resource, waterTex->UploadHeap));
+
+	mTextures[waterTex->Name] = std::move(waterTex);
 }
 
 LRESULT d3dApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

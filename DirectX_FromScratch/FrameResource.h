@@ -8,6 +8,7 @@ struct ObjectConstants // constant buffer data for each render object
 {
     DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
     DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
+    bool isWater = false;
 };
 
 struct PassConstants // constant buffer data for each frame

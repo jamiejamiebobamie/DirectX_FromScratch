@@ -685,12 +685,15 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSkull()
 
 	for (size_t i = 0; i < vertexCount; ++i)
 	{
+
+		float texc = (float)(i %  3);
+
 		file >> mesh.Vertices[i].Position.x >> mesh.Vertices[i].Position.y
 			>> mesh.Vertices[i].Position.z;
 		file >> mesh.Vertices[i].Normal.x >> mesh.Vertices[i].Normal.y
 			>> mesh.Vertices[i].Normal.z;
 		mesh.Vertices[i].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
-		mesh.Vertices[i].TexC = XMFLOAT2(0.0f, 0.0f);
+		mesh.Vertices[i].TexC = XMFLOAT2(0.0f + texc, 0.0f + texc);
 	}
 
 	file >> ignore >> ignore >> ignore;

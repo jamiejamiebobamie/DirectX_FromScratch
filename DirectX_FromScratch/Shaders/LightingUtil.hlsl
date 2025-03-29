@@ -6,6 +6,8 @@
 
 #define MaxLights 16
 
+#define NumDivisions 7
+
 struct Light
 {
     float3 Strength;
@@ -27,6 +29,12 @@ float CalcAttenuation(float d, float falloffStart, float falloffEnd)
 {
     // Linear falloff.
     return saturate((falloffEnd-d) / (falloffEnd - falloffStart));
+}
+
+float ToonShader(float ndotl, int numDivisions)
+{
+    float discreteVal = round(ndotl * numDivisions);
+    return discreteVal / (float) numDivisions;
 }
 
 // Schlick gives an approximation to Fresnel reflectance (see pg. 233 "Real-Time Rendering 3rd Ed.").
@@ -67,7 +75,10 @@ float3 ComputeDirectionalLight(Light L, Material mat, float3 normal, float3 toEy
     float3 lightVec = -L.Direction;
 
     // Scale light down by Lambert's cosine law.
-    float ndotl = max(dot(lightVec, normal), 0.0f);    
+    float ndotl = max(dot(lightVec, normal), 0.0f);  
+       
+    ndotl = ToonShader(ndotl, NumDivisions);
+    
     float3 lightStrength = L.Strength * ndotl;
 
     return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
@@ -93,6 +104,9 @@ float3 ComputePointLight(Light L, Material mat, float3 pos, float3 normal, float
 
     // Scale light down by Lambert's cosine law.
     float ndotl = max(dot(lightVec, normal), 0.0f);
+    
+    ndotl = ToonShader(ndotl, NumDivisions);
+    
     float3 lightStrength = L.Strength * ndotl;
 
     // Attenuate light by distance.
@@ -122,6 +136,9 @@ float3 ComputeSpotLight(Light L, Material mat, float3 pos, float3 normal, float3
 
     // Scale light down by Lambert's cosine law.
     float ndotl = max(dot(lightVec, normal), 0.0f);    
+    
+    ndotl = ToonShader(ndotl, NumDivisions);
+    
     float3 lightStrength = L.Strength * ndotl;
 
     // Attenuate light by distance.
