@@ -37,7 +37,7 @@ struct RenderItem
 
 	XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
 
-	bool isWater = false;
+	UINT texIndex = 0;
 
 	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
 	// Because we have an object cbuffer for each FrameResource, we have to apply the
@@ -101,7 +101,7 @@ private:
 	void BuildRenderItems();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 
-	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 8> GetStaticSamplers();
 
 private:
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;

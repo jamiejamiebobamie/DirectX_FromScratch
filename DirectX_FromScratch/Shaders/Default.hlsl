@@ -6,7 +6,7 @@
 
 // Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
-    #define NUM_DIR_LIGHTS 1
+    #define NUM_DIR_LIGHTS 3
 #endif
 
 #ifndef NUM_POINT_LIGHTS
@@ -20,16 +20,30 @@
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
-Texture2D gDiffuseMap : register(t0);
-SamplerState gsamLinear : register(s0);
+Texture2D gDiffuseMap1 : register(t0);
+Texture2D gDiffuseMap2 : register(t1);
+Texture2D gDiffuseMap3 : register(t2);
+Texture2D gFireball1 : register(t3);
+Texture2D gFireball2 : register(t4);
+
+SamplerState gsamPointWrap : register(s0);
+SamplerState gsamLinearWrap : register(s2);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
+SamplerState gsamBorderColor : register(s6);
+SamplerState gsamAnisotropicMirror : register(s7);
+
+
+
 
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
     float4x4 gTexTransform;
-    bool gIsWater;
+    uint gTexIndex;
+    uint gObjPad0;
+    uint gObjPad1;
+    uint gObjPad2;
 };
 
 // Constant data that varies per frame.
@@ -105,11 +119,28 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    //float4 diffuseAlbedo = gIsWater ? gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC + sin(gTotalTime)) * gDiffuseAlbedo : gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
-    
-    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
-   
-    
+    float4 texColor = gTexIndex == 0 ? gDiffuseMap1.Sample(gsamAnisotropicWrap, pin.TexC) : gTexIndex == 1 ? gDiffuseMap2.Sample(gsamAnisotropicWrap, pin.TexC) : gDiffuseMap3.Sample(gsamAnisotropicWrap, pin.TexC); //texArr[gTexIndex].Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
+
+    float4 diffuseAlbedo;
+    if (gTexIndex > 2)
+    {
+        float4 texColor = gFireball1.Sample(gsamAnisotropicWrap, float2(pin.TexC.x + cos(gTotalTime * -16.0f) / 16.0f, pin.TexC.y + sin(gTotalTime * -16.0f) / 16.0f)); // * float4(1.0f, 0.65f, 0.28f, 1.0f);
+
+        texColor *= float4(0.5f, 0.0f, 0.0f, 1.0f);
+        texColor = normalize(texColor);
+        float4 texColor2 = gFireball2.Sample(gsamAnisotropicWrap, float2(0.5f + pin.TexC.x * 2.0f + cos(gTotalTime * 2.0f) / 16.0f, 0.5f + pin.TexC.y * 2.0f + sin(gTotalTime * 2.0f) / 16.0f)); // * float4(1.0f, 0.65f, 0.28f, 1.0f);
+        texColor2 = normalize(texColor2);
+        float4 combined = { texColor.x * texColor2.x, texColor.y * texColor2.y, texColor.z * texColor2.z, texColor.a * texColor2.a };
+        diffuseAlbedo = normalize(combined);
+        clip(diffuseAlbedo.x + diffuseAlbedo.y + diffuseAlbedo.z < .2f ? -1 : 1);
+        diffuseAlbedo += float4(0.4f, 0.9f, 0.3f, 1.0f);
+        diffuseAlbedo *= 2.0f;
+    }
+    else
+    {
+        diffuseAlbedo = texColor * gDiffuseAlbedo;
+    }
+ 
     // Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
 
@@ -117,7 +148,7 @@ float4 PS(VertexOut pin) : SV_Target
     float3 toEyeW = normalize(gEyePosW - pin.PosW);
 
 	// Indirect lighting.
-    float4 ambient = gAmbientLight * diffuseAlbedo;
+    float4 ambient = gTexIndex > 2 ? 0.5f * diffuseAlbedo : gAmbientLight * diffuseAlbedo;
 
     const float shininess = 1.0f - gRoughness;
     Material mat = { diffuseAlbedo, gFresnelR0, shininess };
@@ -125,13 +156,11 @@ float4 PS(VertexOut pin) : SV_Target
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW, 
         pin.NormalW, toEyeW, shadowFactor);
 
-    float4 litColor = ambient + directLight;
+    float4 litColor = gTexIndex > 2 ? ambient : ambient + directLight;
 
     // Common convention to take alpha from diffuse material.
     litColor.a = diffuseAlbedo.a;
     
-  //  clip(diffuseAlbedo.a);
-
     return litColor;
 }
 

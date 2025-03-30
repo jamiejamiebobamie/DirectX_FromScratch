@@ -161,7 +161,7 @@ bool d3dApp::InitDirect3D() {
 
 	HRESULT hardwareResult = D3D12CreateDevice(
 		nullptr,
-		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_12_1, //D3D_FEATURE_LEVEL_11_0,
 		IID_PPV_ARGS(&md3dDevice));
 
 	if (FAILED(hardwareResult))
@@ -171,7 +171,7 @@ bool d3dApp::InitDirect3D() {
 
 		ThrowIfFailed(D3D12CreateDevice(
 			pWarpAdapter.Get(),
-			D3D_FEATURE_LEVEL_11_0,
+			D3D_FEATURE_LEVEL_12_1, //D3D_FEATURE_LEVEL_11_0,
 			IID_PPV_ARGS(&md3dDevice)));
 	}
 
@@ -274,10 +274,58 @@ void d3dApp::CreateRtvAndDsvDescriptorHeaps()
 		&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
 }
 
+void d3dApp::LoadTextures()
+{
+	auto wireFenceTex = std::make_unique<Texture>();
+	wireFenceTex->Name = "wireFenceTex";
+	wireFenceTex->Filename = L"Textures/WireFence.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), wireFenceTex->Filename.c_str(),
+		wireFenceTex->Resource, wireFenceTex->UploadHeap));
+
+	mTextures[wireFenceTex->Name] = std::move(wireFenceTex);
+
+	auto woodCrateTex = std::make_unique<Texture>();
+	woodCrateTex->Name = "woodCrateTex02";
+	woodCrateTex->Filename = L"Textures/water1 - Copy.dds";//"Textures / water1 - Copy.dds"; // WoodCrate02
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), woodCrateTex->Filename.c_str(),
+		woodCrateTex->Resource, woodCrateTex->UploadHeap));
+
+	mTextures[woodCrateTex->Name] = std::move(woodCrateTex);
+
+	auto waterTex = std::make_unique<Texture>();
+	waterTex->Name = "water1";
+	waterTex->Filename = L"Textures/water1.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), waterTex->Filename.c_str(),
+		waterTex->Resource, waterTex->UploadHeap));
+
+	mTextures[waterTex->Name] = std::move(waterTex);
+
+	auto fireball1 = std::make_unique<Texture>();
+	fireball1->Name = "fireball1";
+	fireball1->Filename = L"Textures/ugly_swirl.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), fireball1->Filename.c_str(),
+		fireball1->Resource, fireball1->UploadHeap));
+
+	mTextures[fireball1->Name] = std::move(fireball1);
+
+	auto fireball2 = std::make_unique<Texture>();
+	fireball2->Name = "fireball2";
+	fireball2->Filename = L"Textures/ugly_sun_spot.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), fireball2->Filename.c_str(),
+		fireball2->Resource, fireball2->UploadHeap));
+
+	mTextures[fireball2->Name] = std::move(fireball2);
+}
+
 void d3dApp::BuildRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE texTable;
-	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0);
+	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
 
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
@@ -320,7 +368,7 @@ void d3dApp::BuildDescriptorHeaps()
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 3;
+	srvHeapDesc.NumDescriptors = 5;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -366,12 +414,35 @@ void d3dApp::BuildDescriptorHeaps()
 	srvDesc.Texture2D.MipLevels = waterTex->GetDesc().MipLevels;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	md3dDevice->CreateShaderResourceView(waterTex.Get(), &srvDesc, hDescriptor);
+
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	auto fireball1 = mTextures["fireball1"]->Resource;
+	srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = fireball1->GetDesc().Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = fireball1->GetDesc().MipLevels;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	md3dDevice->CreateShaderResourceView(fireball1.Get(), &srvDesc, hDescriptor);
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	auto fireball2 = mTextures["fireball2"]->Resource;
+	srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = fireball2->GetDesc().Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = fireball2->GetDesc().MipLevels;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	md3dDevice->CreateShaderResourceView(fireball2.Get(), &srvDesc, hDescriptor);
 }
 
 void d3dApp::BuildShadersAndInputLayout()
 {
-	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_0");
-	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "PS", "ps_5_0");
+	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "PS", "ps_5_1");
 
 	mInputLayout =
 	{
@@ -386,6 +457,7 @@ void d3dApp::BuildShapeGeometry()
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData box = geoGen.CreateBox(1.0f, 1.0f, 1.0f, 3);
 	GeometryGenerator::MeshData skull = geoGen.CreateSkull();
+	GeometryGenerator::MeshData quad = geoGen.CreateQuad(-5.0f, 5.0f, 10.0f, 10.0f, 0.0f);
 
 	// Define the SubmeshGeometry that cover different 
 	// regions of the vertex/index buffers.
@@ -403,7 +475,12 @@ void d3dApp::BuildShapeGeometry()
 	skullSubmesh.StartIndexLocation = skullIndexOffset;
 	skullSubmesh.BaseVertexLocation = skullVertexOffset;
 
-	auto totalVertexCount = box.Vertices.size() + skull.Vertices.size();
+	SubmeshGeometry fireballSubmesh;
+	fireballSubmesh.IndexCount = (UINT)quad.Indices32.size();
+	fireballSubmesh.StartIndexLocation = skullIndexOffset + skullSubmesh.IndexCount;
+	fireballSubmesh.BaseVertexLocation = skullVertexOffset + skull.Vertices.size();
+
+	auto totalVertexCount = box.Vertices.size() + skull.Vertices.size() + quad.Vertices.size();
 
 	std::vector<Vertex> vertices(totalVertexCount);
 
@@ -422,10 +499,17 @@ void d3dApp::BuildShapeGeometry()
 		vertices[k].TexC = skull.Vertices[i].TexC;
 	}
 
+	for (size_t i = 0; i < quad.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = quad.Vertices[i].Position;
+		vertices[k].Normal = quad.Vertices[i].Normal;
+		vertices[k].TexC = quad.Vertices[i].TexC;
+	}
 
 	std::vector<std::uint16_t> indices;
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
 	indices.insert(indices.end(), std::begin(skull.GetIndices16()), std::end(skull.GetIndices16()));
+	indices.insert(indices.end(), std::begin(quad.GetIndices16()), std::end(quad.GetIndices16()));
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -452,6 +536,7 @@ void d3dApp::BuildShapeGeometry()
 
 	geo->DrawArgs["box"] = boxSubmesh;
 	geo->DrawArgs["skull"] = skullSubmesh;
+	geo->DrawArgs["fireball"] = fireballSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -538,9 +623,19 @@ void d3dApp::BuildMaterials()
 	water->FresnelR0 = XMFLOAT3(1.33f, 1.33f, 1.33f);
 	water->Roughness = 0.3f;
 
+	auto fire = std::make_unique<Material>();
+	fire->Name = "fire";
+	fire->MatCBIndex = 3; // material c_buffer index
+	fire->DiffuseSrvHeapIndex = 3; // tex desc heap
+	fire->DiffuseAlbedo = XMFLOAT4(Colors::Red);
+	fire->FresnelR0 = XMFLOAT3(1.33f, 1.33f, 1.33f);
+	fire->Roughness = 0.3f;
+
 	mMaterials["woodCrate"] = std::move(woodCrate);
 	mMaterials["stone0"] = std::move(stone0);
 	mMaterials["water"] = std::move(water);
+	mMaterials["fire"] = std::move(fire);
+
 
 }
 
@@ -548,8 +643,8 @@ void d3dApp::BuildRenderItems()
 {
 	auto boxRitem = std::make_unique<RenderItem>();
 	boxRitem->ObjCBIndex = 0;
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f));
-	boxRitem->isWater = false;
+	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f) * XMMatrixTranslation(2.5f, 0.0f, 2.5f));
+	boxRitem->texIndex = 0;
 	boxRitem->Mat = mMaterials["woodCrate"].get();
 	boxRitem->Geo = mGeometries["geo"].get();
 	boxRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -561,7 +656,7 @@ void d3dApp::BuildRenderItems()
 	auto boxRitem2 = std::make_unique<RenderItem>();
 	boxRitem2->ObjCBIndex = 1;
 	XMStoreFloat4x4(&boxRitem2->World, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(-2.5f, 0.0f, -2.5f));
-	boxRitem2->isWater = false;
+	boxRitem2->texIndex = 1;
 	boxRitem2->Mat = mMaterials["stone0"].get();
 	boxRitem2->Geo = mGeometries["geo"].get();
 	boxRitem2->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -572,15 +667,26 @@ void d3dApp::BuildRenderItems()
 
 	auto boxRitem3 = std::make_unique<RenderItem>();
 	boxRitem3->ObjCBIndex = 2;
-	XMStoreFloat4x4(&boxRitem3->World, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(2.5f, 0.0f, 2.5f));
-	boxRitem3->isWater = true;
-	boxRitem3->Mat = mMaterials["water"].get();
+	XMStoreFloat4x4(&boxRitem3->World, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(5.0f, 0.0f, 0.0f));
+	boxRitem3->texIndex = 0;
+	boxRitem3->Mat = mMaterials["woodCrate"].get();
 	boxRitem3->Geo = mGeometries["geo"].get();
 	boxRitem3->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	boxRitem3->IndexCount = boxRitem3->Geo->DrawArgs["skull"].IndexCount;
 	boxRitem3->StartIndexLocation = boxRitem3->Geo->DrawArgs["skull"].StartIndexLocation;
 	boxRitem3->BaseVertexLocation = boxRitem3->Geo->DrawArgs["skull"].BaseVertexLocation;
 	mAllRitems.push_back(std::move(boxRitem3));
+
+	auto boxRitem4 = std::make_unique<RenderItem>();
+	boxRitem4->ObjCBIndex = 3;
+	boxRitem4->texIndex = 4;
+	boxRitem4->Mat = mMaterials["water"].get();
+	boxRitem4->Geo = mGeometries["geo"].get();
+	boxRitem4->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	boxRitem4->IndexCount = boxRitem4->Geo->DrawArgs["fireball"].IndexCount;
+	boxRitem4->StartIndexLocation = boxRitem4->Geo->DrawArgs["fireball"].StartIndexLocation;
+	boxRitem4->BaseVertexLocation = boxRitem4->Geo->DrawArgs["fireball"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(boxRitem4));
 
 	// All the render items are opaque.
 	for (auto& e : mAllRitems)
@@ -595,6 +701,9 @@ void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vect
 	auto objectCB = mCurrFrameResource->ObjectCB->Resource();
 	auto matCB = mCurrFrameResource->MaterialCB->Resource();
 
+	CD3DX12_GPU_DESCRIPTOR_HANDLE tex(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(0, tex);
+
 	// For each render item...
 	for (size_t i = 0; i < ritems.size(); ++i)
 	{
@@ -606,21 +715,17 @@ void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vect
 		cmdList->IASetIndexBuffer(&ibv);
 		cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-		CD3DX12_GPU_DESCRIPTOR_HANDLE tex(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-		tex.Offset(ri->Mat->DiffuseSrvHeapIndex, mCbvSrvDescriptorSize);
-
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
 		D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex * matCBByteSize;
-
-		cmdList->SetGraphicsRootDescriptorTable(0, tex);
 		cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
 		cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
 
 		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+		if (i > 2) ri->NumFramesDirty++; // fireball quad
 	}
 }
 
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> d3dApp::GetStaticSamplers()
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 8> d3dApp::GetStaticSamplers()
 {
 	// Applications usually only need a handful of samplers.  So just define them all up front
 	// and keep them available as part of the root signature.  
@@ -671,10 +776,33 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> d3dApp::GetStaticSamplers()
 		0.0f,                              // mipLODBias
 		8);                                // maxAnisotropy
 
+	const CD3DX12_STATIC_SAMPLER_DESC borderColor(
+		6, // shaderRegister
+		D3D12_FILTER_ANISOTROPIC, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressW
+		0.0f,                              // mipLODBias
+		8,									// maxAnisotropy
+		D3D12_COMPARISON_FUNC_LESS_EQUAL, // comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK // D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK // D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE //borderColor
+		);                    
+
+	const CD3DX12_STATIC_SAMPLER_DESC mirrorColor(
+		7, // shaderRegister
+		D3D12_FILTER_ANISOTROPIC, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE,  // addressW
+		0.0f,                              // mipLODBias
+		8									// maxAnisotropy
+	);
+
 	return {
 		pointWrap, pointClamp,
 		linearWrap, linearClamp,
-		anisotropicWrap, anisotropicClamp };
+		anisotropicWrap, anisotropicClamp,
+		borderColor, mirrorColor };
 }
 
 void d3dApp::OnResize()
@@ -934,7 +1062,7 @@ void d3dApp::OnMouseMove(WPARAM btnState, int x, int y)
 		mRadius += dx - dy;
 
 		// Restrict the radius.
-		mRadius = MathHelper::Clamp(mRadius, 5.0f, 150.0f);
+		mRadius = MathHelper::Clamp(mRadius, 1.0f, 150.0f);
 	}
 
 	mLastMousePos.x = x;
@@ -959,6 +1087,7 @@ void d3dApp::UpdateCamera(const GameTimer& gt)
 
 void d3dApp::UpdateObjectCBs(const GameTimer& gt)
 {
+	int i = 0;
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
 	for (auto& e : mAllRitems)
 	{
@@ -966,19 +1095,29 @@ void d3dApp::UpdateObjectCBs(const GameTimer& gt)
 		// This needs to be tracked per frame resource.
 		if (e->NumFramesDirty > 0)
 		{
+
+			XMVECTOR pos = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+			XMVECTOR toward = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f) - pos;
+			XMVECTOR w = XMVector3Normalize(toward);
+			XMVECTOR u = XMVector3Cross(w, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+			XMVECTOR v = XMVector3Cross(w, u);
+			XMMATRIX world2(u, v, w, pos);
+
 			XMMATRIX world = XMLoadFloat4x4(&e->World);
 			XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform);
 
 			ObjectConstants objConstants;
-			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
+			// only one object is getting updated: fireball quad
+			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(i > 2 ? world2 : world));
 			XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
-			objConstants.isWater = false;//&e->isWater;
+			objConstants.texIndex = e->texIndex;
 
 			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
 
 			// Next FrameResource need to be updated too.
 			e->NumFramesDirty--;
 		}
+		i++;
 	}
 }
 
@@ -1044,36 +1183,6 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
-}
-
-void d3dApp::LoadTextures()
-{
-	auto wireFenceTex = std::make_unique<Texture>();
-	wireFenceTex->Name = "wireFenceTex";
-	wireFenceTex->Filename = L"Textures/WireFence.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), wireFenceTex->Filename.c_str(),
-		wireFenceTex->Resource, wireFenceTex->UploadHeap));
-
-	mTextures[wireFenceTex->Name] = std::move(wireFenceTex);
-
-	auto woodCrateTex = std::make_unique<Texture>();
-	woodCrateTex->Name = "woodCrateTex02";
-	woodCrateTex->Filename = L"Textures/WoodCrate02.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), woodCrateTex->Filename.c_str(),
-		woodCrateTex->Resource, woodCrateTex->UploadHeap));
-
-	mTextures[woodCrateTex->Name] = std::move(woodCrateTex);
-
-	auto waterTex = std::make_unique<Texture>();
-	waterTex->Name = "water1";
-	waterTex->Filename = L"Textures/water1.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), waterTex->Filename.c_str(),
-		waterTex->Resource, waterTex->UploadHeap));
-
-	mTextures[waterTex->Name] = std::move(waterTex);
 }
 
 LRESULT d3dApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

@@ -77,7 +77,7 @@ float3 ComputeDirectionalLight(Light L, Material mat, float3 normal, float3 toEy
     // Scale light down by Lambert's cosine law.
     float ndotl = max(dot(lightVec, normal), 0.0f);  
        
-    ndotl = ToonShader(ndotl, NumDivisions);
+    // ndotl = ToonShader(ndotl, NumDivisions);
     
     float3 lightStrength = L.Strength * ndotl;
 
@@ -105,7 +105,7 @@ float3 ComputePointLight(Light L, Material mat, float3 pos, float3 normal, float
     // Scale light down by Lambert's cosine law.
     float ndotl = max(dot(lightVec, normal), 0.0f);
     
-    ndotl = ToonShader(ndotl, NumDivisions);
+    // ndotl = ToonShader(ndotl, NumDivisions);
     
     float3 lightStrength = L.Strength * ndotl;
 
@@ -137,7 +137,7 @@ float3 ComputeSpotLight(Light L, Material mat, float3 pos, float3 normal, float3
     // Scale light down by Lambert's cosine law.
     float ndotl = max(dot(lightVec, normal), 0.0f);    
     
-    ndotl = ToonShader(ndotl, NumDivisions);
+    // ndotl = ToonShader(ndotl, NumDivisions);
     
     float3 lightStrength = L.Strength * ndotl;
 
