@@ -87,11 +87,10 @@ bool d3dApp::Initialize()
 	// Wait until initialization is complete.
 	FlushCommandQueue();
 
-	bool result = mGameInput.Init();
-
-	OutputDebugString(L"hey\n");
-	OutputDebugString(d3dUtil::convertIntToDisplayStr((int)result));
-	OutputDebugString(L"\nbye\n");
+	//bool result = mGameInput.Init();
+	//OutputDebugString(L"hey\n");
+	//OutputDebugString(d3dUtil::convertIntToDisplayStr((int)result));
+	//OutputDebugString(L"\nbye\n");
 
 
 	return true;
@@ -707,7 +706,7 @@ void d3dApp::Update(const GameTimer& gt)
 		mRadius = MathHelper::Clamp(mDelta, 3.0f, 15.0f);
 	}
 
-	mGameInput.PollGamepadInput();
+	//mGameInput.PollGamepadInput();
 }
 
 
