@@ -11,6 +11,7 @@
 #include "UploadBuffer.h"
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
+#include "Waves.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -60,6 +61,14 @@ struct RenderItem
 	int BaseVertexLocation = 0;
 };
 
+static enum class RenderLayer : int
+{
+	Opaque = 0,
+	Transparent,
+	AlphaTested,
+	Count
+};
+
 class d3dApp
 {
 
@@ -86,22 +95,29 @@ public:
 
 private:
 	void UpdateCamera(const GameTimer& gt);
+	void AnimateMaterials(const GameTimer& gt);
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
+	void UpdateWaves(const GameTimer& gt);
 
 	void LoadTextures();
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildShapeGeometry();
+	void BuildLandGeometry();
+	void BuildWavesGeometry();
+	void BuildBoxGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
 	void BuildRenderItems();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 
-	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 8> GetStaticSamplers();
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
+
+	float GetHillsHeight(float x, float z)const;
+	XMFLOAT3 GetHillsNormal(float x, float z)const;
 
 private:
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
@@ -111,7 +127,6 @@ private:
 	UINT mCbvSrvDescriptorSize = 0;
 
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
-	//ComPtr<ID3D12DescriptorHeap> mCbvHeap = nullptr;
 
 	ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
 
@@ -126,12 +141,14 @@ private:
 	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
+	RenderItem* mWavesRitem = nullptr;
+
 	// Render items divided by PSO.
-	std::vector<RenderItem*> mOpaqueRitems;
+	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
+
+	std::unique_ptr<Waves> mWaves;
 
 	PassConstants mMainPassCB;
-
-	UINT mPassCbvOffset = 0;
 
 	bool mIsWireframe = false;
 
