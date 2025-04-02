@@ -20,33 +20,24 @@
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
-Texture2D gDiffuseMap1 : register(t0);
-Texture2D gDiffuseMap2 : register(t1);
-Texture2D gDiffuseMap3 : register(t2);
-Texture2D gFireball1 : register(t3);
-Texture2D gFireball2 : register(t4);
+Texture2D gDiffuseMap : register(t0);
+
 
 SamplerState gsamPointWrap : register(s0);
+SamplerState gsamPointClamp : register(s1);
 SamplerState gsamLinearWrap : register(s2);
+SamplerState gsamLinearClamp : register(s3);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
-SamplerState gsamBorderColor : register(s6);
-SamplerState gsamAnisotropicMirror : register(s7);
 
-
-
-
+// Constant data that varies per frame.
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
     float4x4 gTexTransform;
-    uint gTexIndex;
-    uint gObjPad0;
-    uint gObjPad1;
-    uint gObjPad2;
 };
 
-// Constant data that varies per frame.
+// Constant data that varies per pass.
 cbuffer cbPass : register(b1)
 {
     float4x4 gView;
@@ -65,6 +56,13 @@ cbuffer cbPass : register(b1)
     float gDeltaTime;
     float4 gAmbientLight;
 
+	// Allow application to change fog parameters once per frame.
+	// For example, we may only use fog for certain times of day.
+    float4 gFogColor;
+    float gFogStart;
+    float gFogRange;
+    float2 cbPerObjectPad2;
+
     // Indices [0, NUM_DIR_LIGHTS) are directional lights;
     // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
     // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
@@ -72,7 +70,6 @@ cbuffer cbPass : register(b1)
     Light gLights[MaxLights];
 };
 
-// Constant data that varies per material.
 cbuffer cbMaterial : register(b2)
 {
     float4 gDiffuseAlbedo;
@@ -80,37 +77,37 @@ cbuffer cbMaterial : register(b2)
     float gRoughness;
     float4x4 gMatTransform;
 };
- 
+
 struct VertexIn
 {
-	float3 PosL    : POSITION;
+    float3 PosL : POSITION;
     float3 NormalL : NORMAL;
     float2 TexC : TEXCOORD;
 };
 
 struct VertexOut
 {
-	float4 PosH    : SV_POSITION;
-    float3 PosW    : POSITION;
+    float4 PosH : SV_POSITION;
+    float3 PosW : POSITION;
     float3 NormalW : NORMAL;
     float2 TexC : TEXCOORD;
 };
 
 VertexOut VS(VertexIn vin)
 {
-	VertexOut vout = (VertexOut)0.0f;
+    VertexOut vout = (VertexOut) 0.0f;
 	
     // Transform to world space.
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
     vout.PosW = posW.xyz;
 
-    // Assumes uniform scaling; otherwise, need to use inverse-transpose of world matrix.
-    vout.NormalW = mul(vin.NormalL, (float3x3)gWorld);
+    // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
+    vout.NormalW = mul(vin.NormalL, (float3x3) gWorld);
 
     // Transform to homogeneous clip space.
     vout.PosH = mul(posW, gViewProj);
-    
-    // Output vertex attributes for interpolation across triangle.
+	
+	// Output vertex attributes for interpolation across triangle.
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
     vout.TexC = mul(texC, gMatTransform).xy;
 
@@ -119,48 +116,42 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float4 texColor = gTexIndex == 0 ? gDiffuseMap1.Sample(gsamAnisotropicWrap, pin.TexC) : gTexIndex == 1 ? gDiffuseMap2.Sample(gsamAnisotropicWrap, pin.TexC) : gDiffuseMap3.Sample(gsamAnisotropicWrap, pin.TexC); //texArr[gTexIndex].Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
+    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
+	
+#ifdef ALPHA_TEST
+	// Discard pixel if texture alpha < 0.1.  We do this test as soon 
+	// as possible in the shader so that we can potentially exit the
+	// shader early, thereby skipping the rest of the shader code.
+	clip(diffuseAlbedo.a - 0.1f);
+#endif
 
-    float4 diffuseAlbedo;
-    if (gTexIndex > 2)
-    {
-        float4 texColor = gFireball1.Sample(gsamAnisotropicWrap, float2(pin.TexC.x + cos(gTotalTime * -16.0f) / 16.0f, pin.TexC.y + sin(gTotalTime * -16.0f) / 16.0f)); // * float4(1.0f, 0.65f, 0.28f, 1.0f);
-
-        texColor *= float4(0.5f, 0.0f, 0.0f, 1.0f);
-        texColor = normalize(texColor);
-        float4 texColor2 = gFireball2.Sample(gsamAnisotropicWrap, float2(0.5f + pin.TexC.x * 2.0f + cos(gTotalTime * 2.0f) / 16.0f, 0.5f + pin.TexC.y * 2.0f + sin(gTotalTime * 2.0f) / 16.0f)); // * float4(1.0f, 0.65f, 0.28f, 1.0f);
-        texColor2 = normalize(texColor2);
-        float4 combined = { texColor.x * texColor2.x, texColor.y * texColor2.y, texColor.z * texColor2.z, texColor.a * texColor2.a };
-        diffuseAlbedo = normalize(combined);
-        clip(diffuseAlbedo.x + diffuseAlbedo.y + diffuseAlbedo.z < .2f ? -1 : 1);
-        diffuseAlbedo += float4(0.4f, 0.9f, 0.3f, 1.0f);
-        diffuseAlbedo *= 2.0f;
-    }
-    else
-    {
-        diffuseAlbedo = texColor * gDiffuseAlbedo;
-    }
- 
     // Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
 
     // Vector from point being lit to eye. 
-    float3 toEyeW = normalize(gEyePosW - pin.PosW);
+    float3 toEyeW = gEyePosW - pin.PosW;
+    float distToEye = length(toEyeW);
+    toEyeW /= distToEye; // normalize
 
-	// Indirect lighting.
-    float4 ambient = gTexIndex > 2 ? 0.5f * diffuseAlbedo : gAmbientLight * diffuseAlbedo;
+    // Light terms.
+    float4 ambient = gAmbientLight * diffuseAlbedo;
 
     const float shininess = 1.0f - gRoughness;
     Material mat = { diffuseAlbedo, gFresnelR0, shininess };
     float3 shadowFactor = 1.0f;
-    float4 directLight = ComputeLighting(gLights, mat, pin.PosW, 
+    float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         pin.NormalW, toEyeW, shadowFactor);
 
-    float4 litColor = gTexIndex > 2 ? ambient : ambient + directLight;
+    float4 litColor = ambient + directLight;
 
-    // Common convention to take alpha from diffuse material.
+#ifdef FOG
+	float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
+	litColor = lerp(litColor, gFogColor, fogAmount);
+#endif
+
+    // Common convention to take alpha from diffuse albedo.
     litColor.a = diffuseAlbedo.a;
-    
+
     return litColor;
 }
 

@@ -23,6 +23,14 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
+enum class RenderLayer : int
+{
+	Opaque = 0,
+	Transparent,
+	AlphaTested,
+	Count
+};
+
 extern const int gNumFrameResources;
 
 // Lightweight structure stores parameters to draw a shape.  This will
@@ -61,13 +69,7 @@ struct RenderItem
 	int BaseVertexLocation = 0;
 };
 
-static enum class RenderLayer : int
-{
-	Opaque = 0,
-	Transparent,
-	AlphaTested,
-	Count
-};
+
 
 class d3dApp
 {
