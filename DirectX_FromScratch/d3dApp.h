@@ -97,19 +97,15 @@ public:
 
 private:
 	void UpdateCamera(const GameTimer& gt);
-	void AnimateMaterials(const GameTimer& gt);
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
-	void UpdateWaves(const GameTimer& gt);
 
 	void LoadTextures();
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildSkull();
 	void BuildLandGeometry();
-	void BuildWavesGeometry();
 	void BuildBoxGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
@@ -144,7 +140,7 @@ private:
 	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
-	RenderItem* mWavesRitem = nullptr;
+	RenderItem* mTransparentRitems = nullptr;
 
 	// Render items divided by PSO.
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
