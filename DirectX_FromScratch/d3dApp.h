@@ -107,6 +107,7 @@ private:
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
+	void BuildSkull();
 	void BuildLandGeometry();
 	void BuildWavesGeometry();
 	void BuildBoxGeometry();

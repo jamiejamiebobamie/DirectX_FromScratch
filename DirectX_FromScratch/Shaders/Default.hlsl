@@ -148,7 +148,7 @@ float4 PS(VertexOut pin) : SV_Target
 	float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
 	litColor = lerp(litColor, gFogColor, fogAmount);
 #endif
-
+    
     // Common convention to take alpha from diffuse albedo.
     litColor.a = diffuseAlbedo.a;
 

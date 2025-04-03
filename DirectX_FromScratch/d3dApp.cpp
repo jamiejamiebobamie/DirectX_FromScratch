@@ -86,12 +86,13 @@ bool d3dApp::Initialize()
     // so we have to query this information.
 	mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	mWaves = std::make_unique<Waves>(128, 128, 1.0f, 0.03f, 10.0f, 0.1f);
+	mWaves = std::make_unique<Waves>(228, 228, 1.0f, 0.03f, 20.0f, 0.001f);
 
 	LoadTextures();
 	BuildRootSignature();
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
+	BuildSkull();
 	BuildLandGeometry();
 	BuildWavesGeometry();
 	BuildBoxGeometry();
@@ -301,9 +302,17 @@ void d3dApp::LoadTextures()
 		mCommandList.Get(), fenceTex->Filename.c_str(),
 		fenceTex->Resource, fenceTex->UploadHeap));
 
+	auto skullTex = std::make_unique<Texture>();
+	skullTex->Name = "skullTex";
+	skullTex->Filename = L"Textures/white1x1.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), skullTex->Filename.c_str(),
+		skullTex->Resource, skullTex->UploadHeap));
+
 	mTextures[grassTex->Name] = std::move(grassTex);
 	mTextures[waterTex->Name] = std::move(waterTex);
 	mTextures[fenceTex->Name] = std::move(fenceTex);
+	mTextures[skullTex->Name] = std::move(skullTex);
 }
 
 void d3dApp::BuildRootSignature()
@@ -352,7 +361,7 @@ void d3dApp::BuildDescriptorHeaps()
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 3;
+	srvHeapDesc.NumDescriptors = 4;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -365,6 +374,7 @@ void d3dApp::BuildDescriptorHeaps()
 	auto grassTex = mTextures["grassTex"]->Resource;
 	auto waterTex = mTextures["waterTex"]->Resource;
 	auto fenceTex = mTextures["fenceTex"]->Resource;
+	auto skullTex = mTextures["skullTex"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -385,6 +395,12 @@ void d3dApp::BuildDescriptorHeaps()
 
 	srvDesc.Format = fenceTex->GetDesc().Format;
 	md3dDevice->CreateShaderResourceView(fenceTex.Get(), &srvDesc, hDescriptor);
+
+	// next descriptor
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = skullTex->GetDesc().Format;
+	md3dDevice->CreateShaderResourceView(skullTex.Get(), &srvDesc, hDescriptor);
 }
 
 void d3dApp::BuildShadersAndInputLayout()
@@ -414,10 +430,64 @@ void d3dApp::BuildShadersAndInputLayout()
 	};
 }
 
+void d3dApp::BuildSkull()
+{
+	GeometryGenerator geoGen;
+	GeometryGenerator::MeshData skull = geoGen.CreateSkull();
+
+	//
+	// Extract the vertex elements we are interested and apply the height function to
+	// each vertex.  In addition, color the vertices based on their height so we have
+	// sandy looking beaches, grassy low hills, and snow mountain peaks.
+	//
+
+	std::vector<Vertex> vertices(skull.Vertices.size());
+	for (size_t i = 0; i < skull.Vertices.size(); ++i)
+	{
+		vertices[i].Pos = skull.Vertices[i].Position;
+		vertices[i].Normal = skull.Vertices[i].Normal;
+		vertices[i].TexC = skull.Vertices[i].TexC;
+	}
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+
+	std::vector<std::uint16_t> indices = skull.GetIndices16();
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "skullGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(Vertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
+
+	geo->DrawArgs["skull"] = submesh;
+
+	mGeometries["skullGeo"] = std::move(geo);
+}
+
 void d3dApp::BuildLandGeometry()
 {
 	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData grid = geoGen.CreateGrid(1060.0f, 1060.0f, 50, 50);
+	GeometryGenerator::MeshData grid = geoGen.CreateGrid(400.0f, 400.0f, 20, 20);
 
 	//
 	// Extract the vertex elements we are interested and apply the height function to
@@ -665,7 +735,7 @@ void d3dApp::BuildMaterials()
 	grass->Name = "grass";
 	grass->MatCBIndex = 0;
 	grass->DiffuseSrvHeapIndex = 0;
-	grass->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	grass->DiffuseAlbedo = XMFLOAT4(0.7f, 0.5f, 0.6f, 1.0f);
 	grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
 	grass->Roughness = 0.125f;
 
@@ -675,9 +745,9 @@ void d3dApp::BuildMaterials()
 	water->Name = "water";
 	water->MatCBIndex = 1;
 	water->DiffuseSrvHeapIndex = 1;
-	water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.5f);
+	water->DiffuseAlbedo = XMFLOAT4(0.3f, 0.4f, 0.5f, 0.5f);
 	water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
-	water->Roughness = 0.0f;
+	water->Roughness = 0.9f;
 
 	auto wirefence = std::make_unique<Material>();
 	wirefence->Name = "wirefence";
@@ -687,16 +757,27 @@ void d3dApp::BuildMaterials()
 	wirefence->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	wirefence->Roughness = 0.25f;
 
+	auto skull = std::make_unique<Material>();
+	skull->Name = "skull";
+	skull->MatCBIndex = 3;
+	skull->DiffuseSrvHeapIndex = 3;
+	skull->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	skull->FresnelR0 = XMFLOAT3(1.46131f, 1.4613f, 1.4613f);
+	skull->Roughness = 0.9f;
+
 	mMaterials["grass"] = std::move(grass);
 	mMaterials["water"] = std::move(water);
 	mMaterials["wirefence"] = std::move(wirefence);
+	mMaterials["skull"] = std::move(skull);
 }
 
 void d3dApp::BuildRenderItems()
 {
 	auto wavesRitem = std::make_unique<RenderItem>();
-	wavesRitem->World = MathHelper::Identity4x4();
-	XMStoreFloat4x4(&wavesRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
+	//wavesRitem->World = MathHelper::Identity4x4();
+	
+	XMStoreFloat4x4(&wavesRitem->World, XMMatrixScaling(3.0f, 1.0f, 3.0f) * XMMatrixTranslation(0.0f, 7.0f, 0.0f) * XMMatrixRotationY(MathHelper::Pi / 2.0f - MathHelper::Pi / 3.0f));
+	XMStoreFloat4x4(&wavesRitem->TexTransform, XMMatrixScaling(15.0f, 15.0f, 1.0f));
 	wavesRitem->ObjCBIndex = 0;
 	wavesRitem->Mat = mMaterials["water"].get();
 	wavesRitem->Geo = mGeometries["waterGeo"].get();
@@ -710,7 +791,8 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Transparent].push_back(wavesRitem.get());
 
 	auto gridRitem = std::make_unique<RenderItem>();
-	gridRitem->World = MathHelper::Identity4x4();
+	//gridRitem->World = MathHelper::Identity4x4();
+	XMStoreFloat4x4(&gridRitem->World, XMMatrixTranslation(0.0f, -7.0f, 0.0f));
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
 	gridRitem->ObjCBIndex = 1;
 	gridRitem->Mat = mMaterials["grass"].get();
@@ -722,9 +804,23 @@ void d3dApp::BuildRenderItems()
 
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
 
+	auto skullRitem = std::make_unique<RenderItem>();
+	//gridRitem->World = MathHelper::Identity4x4();
+	XMStoreFloat4x4(&skullRitem->World, XMMatrixTranslation(0.0f, -7.0f, 0.0f));
+	XMStoreFloat4x4(&skullRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
+	skullRitem->ObjCBIndex = 2;
+	skullRitem->Mat = mMaterials["skull"].get();
+	skullRitem->Geo = mGeometries["skullGeo"].get();
+	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
+	skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
+	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
+
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(skullRitem.get());
+
 	auto boxRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixTranslation(3.0f, 2.0f, -9.0f));
-	boxRitem->ObjCBIndex = 2;
+	XMStoreFloat4x4(&boxRitem->World, XMMatrixTranslation(3.0f, -3.0f, -9.0f));
+	boxRitem->ObjCBIndex = 3;
 	boxRitem->Mat = mMaterials["wirefence"].get();
 	boxRitem->Geo = mGeometries["boxGeo"].get();
 	boxRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -736,6 +832,7 @@ void d3dApp::BuildRenderItems()
 
 	mAllRitems.push_back(std::move(wavesRitem));
 	mAllRitems.push_back(std::move(gridRitem));
+	mAllRitems.push_back(std::move(skullRitem));
 	mAllRitems.push_back(std::move(boxRitem));
 }
 
@@ -1242,13 +1339,18 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.FarZ = 1000.0f;
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
-	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
-	mMainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
-	mMainPassCB.Lights[0].Strength = { 0.9f, 0.9f, 0.8f };
-	mMainPassCB.Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
-	mMainPassCB.Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
-	mMainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
-	mMainPassCB.Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
+	mMainPassCB.AmbientLight = { 0.1f, 0.1f, 0.1f, 1.0f };
+	XMVECTOR lightDir = XMVector3Normalize(XMVectorSet(100.0f, -1.0f, 5.0f, 0.0f));
+	XMFLOAT3 _lightDir;
+	XMStoreFloat3(&_lightDir, lightDir);
+	mMainPassCB.Lights[0].Direction = _lightDir;
+	mMainPassCB.Lights[0].Strength = { 0.7f, 0.5f, 0.3f };
+	//mMainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
+	//mMainPassCB.Lights[0].Strength = { 0.9f, 0.9f, 0.8f };
+	//mMainPassCB.Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
+	//mMainPassCB.Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
+	//mMainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
+	//mMainPassCB.Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
@@ -1258,14 +1360,14 @@ void d3dApp::UpdateWaves(const GameTimer& gt)
 {
 	// Every quarter second, generate a random wave.
 	static float t_base = 0.0f;
-	if ((mTimer.TotalTime() - t_base) >= 0.025f)
+	if ((mTimer.TotalTime() - t_base) >= 0.0025f)
 	{
-		t_base += 0.025f;
+		t_base += 0.0025f;
 
 		int i = MathHelper::Rand(4, mWaves->RowCount() - 5);
 		int j = MathHelper::Rand(4, mWaves->ColumnCount() - 5);
 
-		float r = MathHelper::RandF(0.2f, 0.5f);
+		float r = MathHelper::RandF(0.2f, 1.5f);
 
 		mWaves->Disturb(i, j, r);
 	}
