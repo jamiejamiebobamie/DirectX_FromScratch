@@ -97,6 +97,7 @@ public:
 
 private:
 	void UpdateCamera(const GameTimer& gt);
+	void UpdateTransparentRitemsDrawOrder();
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
