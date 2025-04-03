@@ -640,7 +640,7 @@ void d3dApp::BuildMaterials()
 void d3dApp::BuildRenderItems()
 {
 	auto boxRitem1 = std::make_unique<RenderItem>();	
-	XMStoreFloat4x4(&boxRitem1->World, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	XMStoreFloat4x4(&boxRitem1->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(1.0f, 0.0f, 3.0f));
 	XMStoreFloat4x4(&boxRitem1->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	boxRitem1->ObjCBIndex = 0;
 	boxRitem1->Mat = mMaterials["boxMat1"].get();
@@ -653,7 +653,7 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Transparent].push_back(boxRitem1.get());
 
 	auto boxRitem2 = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&boxRitem2->World, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(1.0f, -2.0f, -8.0f));
+	XMStoreFloat4x4(&boxRitem2->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(3.0f, 0.0f, -10.0f));
 	XMStoreFloat4x4(&boxRitem2->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	boxRitem2->ObjCBIndex = 1;
 	boxRitem2->Mat = mMaterials["boxMat2"].get();
@@ -666,7 +666,7 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Transparent].push_back(boxRitem2.get());
 
 	auto boxRitem3 = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&boxRitem3->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-4.0f, 0.0f, -20.0f));
+	XMStoreFloat4x4(&boxRitem3->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-3.0f, 0.0f, -20.0f));
 	XMStoreFloat4x4(&boxRitem3->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	boxRitem3->ObjCBIndex = 2;
 	boxRitem3->Mat = mMaterials["boxMat3"].get();
