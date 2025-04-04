@@ -1079,6 +1079,8 @@ void d3dApp::OnMouseMove(WPARAM btnState, int x, int y)
 
 		// Restrict the angle mPhi.
 		mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
+
+		mIsCameraChange = true;
 	}
 	else if ((btnState & MK_RBUTTON) != 0)
 	{
@@ -1091,6 +1093,8 @@ void d3dApp::OnMouseMove(WPARAM btnState, int x, int y)
 
 		// Restrict the radius.
 		mRadius = MathHelper::Clamp(mRadius, 1.0f, 150.0f);
+
+		mIsCameraChange = true;
 	}
 
 	mLastMousePos.x = x;
@@ -1112,11 +1116,10 @@ void d3dApp::UpdateCamera(const GameTimer& gt)
 	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
 	XMStoreFloat4x4(&mView, view);
 
-	mIsCameraChange = true;
+
 }
 
 void d3dApp::UpdateTransparentRitemsDrawOrder() {
-
 	if (mIsCameraChange) {
 		XMVECTOR cameraPos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
 
