@@ -97,6 +97,7 @@ public:
 
 private:
 	void UpdateCamera(const GameTimer& gt);
+	// Order transparent items from furthest to closest -- required for proper rendering
 	void UpdateTransparentRitemsDrawOrder();
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialCBs(const GameTimer& gt);
@@ -151,6 +152,7 @@ private:
 	PassConstants mMainPassCB;
 
 	bool mIsWireframe = false;
+	bool mIsCameraChange = false;
 
 	XMFLOAT3 mEyePos = { 0.0f, 0.0f, 0.0f };
 	XMFLOAT4X4 mView = MathHelper::Identity4x4();

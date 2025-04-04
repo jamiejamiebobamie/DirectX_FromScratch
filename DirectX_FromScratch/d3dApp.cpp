@@ -556,7 +556,7 @@ void d3dApp::BuildPSOs()
 	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 	transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
-	transparentPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	//transparentPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&mPSOs["transparent"])));
 
 	//
@@ -969,7 +969,7 @@ void d3dApp::Update(const GameTimer& gt)
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
-	//UpdateTransparentRitemsDrawOrder();
+	UpdateTransparentRitemsDrawOrder();
 	UpdateObjectCBs(gt);
 	UpdateMaterialCBs(gt);
 	UpdateMainPassCB(gt);
@@ -1111,114 +1111,75 @@ void d3dApp::UpdateCamera(const GameTimer& gt)
 
 	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
 	XMStoreFloat4x4(&mView, view);
+
+	mIsCameraChange = true;
 }
 
 void d3dApp::UpdateTransparentRitemsDrawOrder() {
 
-	XMVECTOR cameraPos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
+	if (mIsCameraChange) {
+		XMVECTOR cameraPos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
 
-	float arr[3];
-	for (int i = 0; i < 3; i++) {
-		XMVECTOR objPos = XMVectorSet(
-			mRitemLayer[(int)RenderLayer::Transparent][i]->World._41,
-			mRitemLayer[(int)RenderLayer::Transparent][i]->World._42,
-			mRitemLayer[(int)RenderLayer::Transparent][i]->World._43,
-			mRitemLayer[(int)RenderLayer::Transparent][i]->World._44);
-
-		XMVECTOR diff = objPos - cameraPos;
-		XMVECTOR l = XMVector3Length(diff);
-		float length;
-		XMStoreFloat(&length, l);
-		arr[i] = length;
-	}
-
-	int min_i = -1;
-	int max_i = -1;
-	int mid_i = -1;
-
-	for (int i = 0; i < 3; i++) {
-		float l = arr[i];
-
-		if (min_i == -1 || l == MathHelper::Min(arr[min_i], l)) {
-			min_i = i;
+		float arr[3];
+		for (int i = 0; i < 3; i++) {
+			XMVECTOR objPos = XMVectorSet(
+				mRitemLayer[(int)RenderLayer::Transparent][i]->World._41,
+				mRitemLayer[(int)RenderLayer::Transparent][i]->World._42,
+				mRitemLayer[(int)RenderLayer::Transparent][i]->World._43,
+				mRitemLayer[(int)RenderLayer::Transparent][i]->World._44);
+			XMVECTOR diff = objPos - cameraPos;
+			XMVECTOR l = XMVector3Length(diff);
+			float length;
+			XMStoreFloat(&length, l);
+			arr[i] = length;
 		}
 
-		if (max_i == -1 || l == MathHelper::Max(arr[max_i], l)) {
-			max_i = i;
-		}
+		int min_i = -1;
+		int max_i = -1;
+		int mid_i = -1;
 
-		if (i == 2) {
-			int arr[3] = { 0, 1, 2 };
-			arr[min_i] = -1;
-			arr[max_i] = -1;
+		for (int i = 0; i < 3; i++) {
+			float l = arr[i];
 
-			for (int j = 0; j < 3; j++) {
-				if (arr[j] != -1) {
-					mid_i = j;
-					break;
+			if (min_i == -1 || l == MathHelper::Min(arr[min_i], l)) {
+				min_i = i;
+			}
+
+			if (max_i == -1 || l == MathHelper::Max(arr[max_i], l)) {
+				max_i = i;
+			}
+
+			if (i == 2) {
+				int arr[3] = { 0, 1, 2 };
+				arr[min_i] = -1;
+				arr[max_i] = -1;
+
+				for (int j = 0; j < 3; j++) {
+					if (arr[j] != -1) {
+						mid_i = j;
+						break;
+					}
 				}
 			}
 		}
+
+		std::vector<RenderItem*> newVector;
+		newVector.push_back(mRitemLayer[(int)RenderLayer::Transparent][max_i]);
+		newVector.push_back(mRitemLayer[(int)RenderLayer::Transparent][mid_i]);
+		newVector.push_back(mRitemLayer[(int)RenderLayer::Transparent][min_i]);
+
+		//std:wstring text =
+		//L"max_i = " + std::to_wstring(max_i) + L" " +
+		//L"mid_i = " + std::to_wstring(mid_i) + L" " +
+		//L"min_i = " + std::to_wstring(min_i) + L" " +
+		//L"ObjCBIndex = " + std::to_wstring(mRitemLayer[(int)RenderLayer::Transparent][max_i]->ObjCBIndex) + L" " +
+		//L"ObjCBIndex2 = " + std::to_wstring(newVector[0]->ObjCBIndex) + L" " +
+		//L"\n";
+		//::OutputDebugString(text.c_str());
+
+		mRitemLayer[(int)RenderLayer::Transparent] = newVector;
+		mIsCameraChange = false;
 	}
-
-	//mRitemLayer[(int)RenderLayer::Transparent].emplace()
-
-
-	//mRitemLayer[(int)RenderLayer::Transparent][max_i].get();
-
-	//mRitemLayer[(int)RenderLayer::Transparent].operator[0] = 
-
-	//mRitemLayer[(int)RenderLayer::Transparent].insert(mRitemLayer[(int)RenderLayer::Transparent].begin(), max_i, mRitemLayer[(int)RenderLayer::Transparent][max_i]);
-	//mRitemLayer[(int)RenderLayer::Transparent].insert(mRitemLayer[(int)RenderLayer::Transparent].begin(), mid_i, mRitemLayer[(int)RenderLayer::Transparent][mid_i]);
-	//mRitemLayer[(int)RenderLayer::Transparent].insert(mRitemLayer[(int)RenderLayer::Transparent].begin(), min_i, mRitemLayer[(int)RenderLayer::Transparent][min_i]);
-
-	//mRitemLayer[(int)RenderLayer::Transparent].push_back(mAllRitems[max_i].get());
-	//mRitemLayer[(int)RenderLayer::Transparent].push_back(mAllRitems[mid_i].get());
-	//mRitemLayer[(int)RenderLayer::Transparent].push_back(mAllRitems[min_i].get());
-
-
-	//mAllRitems.clear
-
-	//mAllRitems = {
-	//	transparent1,
-	//	transparent2,
-	//	transparent3,
-	//	mAllRitems[3],
-	//	mAllRitems[4],
-	//}
-
-	//mAllRitems[0].swap(mAllRitems[max_i]);
-	//mAllRitems[1].swap(mAllRitems[mid_i]);
-	//mAllRitems[2].swap(mAllRitems[min_i]);
-
-	//mAllRitems[1] = std::make_unique<RenderItem>(&transparent2);
-	//mAllRitems[2] = std::make_unique<RenderItem>(&transparent3);
-
-	//mAllRitems[1] = transparent2;
-	//mAllRitems[2] = transparent3;
-
-
-std:wstring text =
-L"max_i = " + std::to_wstring(max_i) + L" " +
-L"mid_i = " + std::to_wstring(mid_i) + L" " +
-L"min_i = " + std::to_wstring(min_i) +
-L"\n";
-
-::OutputDebugString(text.c_str());
-
-	/*
-		std:wstring text =
-		L"Width = " + std::to_wstring(x.Width) + L" " +
-		L"Height = " + std::to_wstring(x.Height) + L" " +
-		L"Refresh = " + std::to_wstring(n) + L"/" + std::to_wstring(d) +
-		L"\n";
-
-	::OutputDebugString(text.c_str());
-	
-	*/
-
-
-
 }
 
 void d3dApp::UpdateObjectCBs(const GameTimer& gt)
