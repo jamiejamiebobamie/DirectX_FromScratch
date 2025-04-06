@@ -26,8 +26,10 @@ using namespace DirectX::PackedVector;
 enum class RenderLayer : int
 {
 	Opaque = 0,
+	Mirrors,
+	Reflected,
 	Transparent,
-	AlphaTested,
+	Shadow,
 	Count
 };
 
@@ -45,8 +47,6 @@ struct RenderItem
 	XMFLOAT4X4 World = MathHelper::Identity4x4();
 
 	XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
-
-	UINT texIndex = 0;
 
 	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
 	// Because we have an object cbuffer for each FrameResource, we have to apply the
@@ -96,19 +96,19 @@ public:
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
+	void OnKeyboardInput(const GameTimer& gt);
 	void UpdateCamera(const GameTimer& gt);
-	// Order transparent items from furthest to closest -- required for proper rendering
-	void UpdateTransparentRitemsDrawOrder();
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
+	void UpdateReflectedPassCB(const GameTimer& gt);
 
 	void LoadTextures();
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildLandGeometry();
-	void BuildBoxGeometry();
+	void BuildRoomGeometry();
+	void BuildSkullGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
@@ -116,9 +116,6 @@ private:
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
-
-	float GetHillsHeight(float x, float z)const;
-	XMFLOAT3 GetHillsNormal(float x, float z)const;
 
 private:
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
@@ -139,20 +136,24 @@ private:
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 
+	// Cache render items of interest.
+	RenderItem* mSkullRitem = nullptr;
+	RenderItem* mReflectedSkullRitem = nullptr;
+	RenderItem* mShadowedSkullRitemWall = nullptr;
+	RenderItem* mShadowedSkullRitemFloor = nullptr;
+
 	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
-
-	RenderItem* mTransparentRitems = nullptr;
 
 	// Render items divided by PSO.
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
-	std::unique_ptr<Waves> mWaves;
-
 	PassConstants mMainPassCB;
+	PassConstants mReflectedPassCB;
+
+	XMFLOAT3 mSkullTranslation = { 0.0f, 1.0f, -5.0f };
 
 	bool mIsWireframe = false;
-	bool mIsCameraChange = false;
 
 	XMFLOAT3 mEyePos = { 0.0f, 0.0f, 0.0f };
 	XMFLOAT4X4 mView = MathHelper::Identity4x4();
