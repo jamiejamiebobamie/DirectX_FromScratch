@@ -26,8 +26,8 @@ using namespace DirectX::PackedVector;
 enum class RenderLayer : int
 {
 	Opaque = 0,
-	Mirrors,
-	Reflected,
+	Skull,
+	Car,
 	Transparent,
 	Shadow,
 	Count
@@ -109,6 +109,7 @@ private:
 	void BuildShadersAndInputLayout();
 	void BuildRoomGeometry();
 	void BuildSkullGeometry();
+	void BuildCarGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
