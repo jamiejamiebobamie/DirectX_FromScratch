@@ -91,6 +91,7 @@ bool d3dApp::Initialize()
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
 	BuildRoomGeometry();
+	BuildTreeGeometry();
 	BuildSkullGeometry();
 	BuildCarGeometry();
 	BuildMaterials();
@@ -312,13 +313,38 @@ void d3dApp::LoadTextures()
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), waterTex->Filename.c_str(),
 		waterTex->Resource, waterTex->UploadHeap));
-	
+
+	auto treeTex = std::make_unique<Texture>();
+	treeTex->Name = "treeTex";
+	treeTex->Filename = L"Textures/tree01S.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), treeTex->Filename.c_str(),
+		treeTex->Resource, treeTex->UploadHeap));
+
+	auto treeTex2 = std::make_unique<Texture>();
+	treeTex2->Name = "treeTex2";
+	treeTex2->Filename = L"Textures/tree02S.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), treeTex2->Filename.c_str(),
+		treeTex2->Resource, treeTex2->UploadHeap));
+
+	auto grassTex = std::make_unique<Texture>();
+	grassTex->Name = "grassTex";
+	grassTex->Filename = L"Textures/grass.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), grassTex->Filename.c_str(),
+		grassTex->Resource, grassTex->UploadHeap));
 
 	mTextures[bricksTex->Name] = std::move(bricksTex);
 	mTextures[checkboardTex->Name] = std::move(checkboardTex);
 	mTextures[iceTex->Name] = std::move(iceTex);
 	mTextures[white1x1Tex->Name] = std::move(white1x1Tex);
 	mTextures[waterTex->Name] = std::move(waterTex);
+	mTextures[treeTex->Name] = std::move(treeTex);
+	mTextures[treeTex2->Name] = std::move(treeTex2);
+	mTextures[grassTex->Name] = std::move(grassTex);
+
+
 }
 
 void d3dApp::BuildDescriptorHeaps()
@@ -327,7 +353,7 @@ void d3dApp::BuildDescriptorHeaps()
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 5;
+	srvHeapDesc.NumDescriptors = 8;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -342,6 +368,10 @@ void d3dApp::BuildDescriptorHeaps()
 	auto iceTex = mTextures["iceTex"]->Resource;
 	auto white1x1Tex = mTextures["white1x1Tex"]->Resource;
 	auto waterTex = mTextures["waterTex"]->Resource;
+	auto treeTex = mTextures["treeTex"]->Resource;
+	auto treeTex2 = mTextures["treeTex2"]->Resource;
+	auto grassTex = mTextures["grassTex"]->Resource;
+
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -374,6 +404,24 @@ void d3dApp::BuildDescriptorHeaps()
 
 	srvDesc.Format = waterTex->GetDesc().Format;
 	md3dDevice->CreateShaderResourceView(waterTex.Get(), &srvDesc, hDescriptor);
+
+	// next descriptor
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = treeTex->GetDesc().Format;
+	md3dDevice->CreateShaderResourceView(treeTex.Get(), &srvDesc, hDescriptor);
+
+	// next descriptor
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = treeTex2->GetDesc().Format;
+	md3dDevice->CreateShaderResourceView(treeTex2.Get(), &srvDesc, hDescriptor);
+
+	// next descriptor
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = grassTex->GetDesc().Format;
+	md3dDevice->CreateShaderResourceView(grassTex.Get(), &srvDesc, hDescriptor);
 }
 
 void d3dApp::BuildRootSignature()
@@ -448,6 +496,7 @@ void d3dApp::BuildRoomGeometry()
 	GeometryGenerator geomGen;
 	GeometryGenerator::MeshData plane = geomGen.CreateGrid(20.0f, 30.0f, 60, 40);
 	GeometryGenerator::MeshData plane2 = geomGen.CreateGrid(10.0f, 7.0f, 60, 40);
+	GeometryGenerator::MeshData plane3 = geomGen.CreateGrid(10.0f, 7.0f, 20, 30);
 
 	SubmeshGeometry wallSubmesh;
 	wallSubmesh.IndexCount = (UINT)plane.GetIndices16().size();
@@ -464,8 +513,13 @@ void d3dApp::BuildRoomGeometry()
 	doorSubmesh.StartIndexLocation = (UINT)(wallSubmesh.IndexCount + floorSubmesh.IndexCount);
 	doorSubmesh.BaseVertexLocation = (UINT)(plane.Vertices.size() * 2);
 
+	SubmeshGeometry mirrorSubmesh;
+	mirrorSubmesh.IndexCount = (UINT)plane3.GetIndices16().size();
+	mirrorSubmesh.StartIndexLocation = (UINT)(wallSubmesh.IndexCount + floorSubmesh.IndexCount + doorSubmesh.IndexCount);
+	mirrorSubmesh.BaseVertexLocation = (UINT)(plane.Vertices.size() * 2 + plane2.Vertices.size());
+
 	size_t k = 0;
-	std::vector<Vertex> vertices(plane.Vertices.size() * 2 + plane2.Vertices.size());
+	std::vector<Vertex> vertices(plane.Vertices.size() * 2 + plane2.Vertices.size() + plane3.Vertices.size());
 	for (size_t i = 0; i < plane.Vertices.size(); ++i, ++k)
 	{
 		vertices[i].Pos = plane.Vertices[i].Position;
@@ -480,18 +534,25 @@ void d3dApp::BuildRoomGeometry()
 		vertices[k].TexC = plane.Vertices[i].TexC;
 	}
 
-	for (size_t i = 0; i < plane.Vertices.size(); ++i, ++k)
+	for (size_t i = 0; i < plane2.Vertices.size(); ++i, ++k)
 	{
 		vertices[k].Pos = plane2.Vertices[i].Position;
 		vertices[k].Normal = plane2.Vertices[i].Normal;
 		vertices[k].TexC = plane2.Vertices[i].TexC;
 	}
 
+	for (size_t i = 0; i < plane3.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = plane3.Vertices[i].Position;
+		vertices[k].Normal = plane3.Vertices[i].Normal;
+		vertices[k].TexC = plane3.Vertices[i].TexC;
+	}
+
 	std::vector<uint16_t> indices;
 	indices.insert(indices.end(), std::begin(plane.GetIndices16()), std::end(plane.GetIndices16()));
 	indices.insert(indices.end(), std::begin(plane.GetIndices16()), std::end(plane.GetIndices16()));
 	indices.insert(indices.end(), std::begin(plane2.GetIndices16()), std::end(plane2.GetIndices16()));
-
+	indices.insert(indices.end(), std::begin(plane3.GetIndices16()), std::end(plane3.GetIndices16()));
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -519,6 +580,72 @@ void d3dApp::BuildRoomGeometry()
 	geo->DrawArgs["floor"] = floorSubmesh;
 	geo->DrawArgs["wall"] = wallSubmesh;
 	geo->DrawArgs["door"] = doorSubmesh;
+	geo->DrawArgs["mirror"] = mirrorSubmesh;
+
+	mGeometries[geo->Name] = std::move(geo);
+}
+
+void d3dApp::BuildTreeGeometry()
+{
+	GeometryGenerator geomGen;
+	GeometryGenerator::MeshData plane = geomGen.CreateGrid(15.0f, 20.0f, 20, 30);
+	GeometryGenerator::MeshData plane2 = geomGen.CreateGrid(20.0f, 7.0f, 20, 30);
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)plane.GetIndices16().size();
+	submesh.StartIndexLocation = (UINT)0;
+	submesh.BaseVertexLocation = (UINT)0;
+
+	SubmeshGeometry submesh2;
+	submesh2.IndexCount = (UINT)plane2.GetIndices16().size();
+	submesh2.StartIndexLocation = submesh.IndexCount;
+	submesh2.BaseVertexLocation = (UINT)plane.Vertices.size();
+
+	std::vector<Vertex> vertices(plane.Vertices.size() + plane2.Vertices.size());
+	size_t k = 0;
+	for (size_t i = 0; i < plane.Vertices.size(); ++i, ++k)
+	{
+		vertices[i].Pos = plane.Vertices[i].Position;
+		vertices[i].Normal = plane.Vertices[i].Normal;
+		vertices[i].TexC = plane.Vertices[i].TexC;
+	}
+
+	for (size_t i = 0; i < plane2.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = plane2.Vertices[i].Position;
+		vertices[k].Normal = plane2.Vertices[i].Normal;
+		vertices[k].TexC = plane2.Vertices[i].TexC;
+	}
+
+	std::vector<uint16_t> indices;
+	indices.insert(indices.end(), std::begin(plane.GetIndices16()), std::end(plane.GetIndices16()));
+	indices.insert(indices.end(), std::begin(plane2.GetIndices16()), std::end(plane2.GetIndices16()));
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "treeGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(Vertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	geo->DrawArgs["tree"] = submesh;
+	geo->DrawArgs["bush"] = submesh2;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -850,6 +977,45 @@ void d3dApp::BuildPSOs()
 
 
 
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC treePsoDesc = opaquePsoDesc;
+	D3D12_RENDER_TARGET_BLEND_DESC treeBlendDesc;
+	treeBlendDesc.BlendEnable = true;
+	treeBlendDesc.LogicOpEnable = false;
+	treeBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	treeBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	treeBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	treeBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	treeBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+	treeBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	treeBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+	treeBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	treePsoDesc.BlendState.RenderTarget[0] = treeBlendDesc;
+	treePsoDesc.BlendState.AlphaToCoverageEnable = true;
+
+
+	//D3D12_DEPTH_STENCIL_DESC doorDDS;
+	//doorDDS.DepthEnable = true;
+	//doorDDS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	//doorDDS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	//doorDDS.StencilEnable = true;
+	//doorDDS.StencilReadMask = 0xff;
+	//doorDDS.StencilWriteMask = 0xff;
+
+	//doorDDS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	//doorDDS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	//doorDDS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	//doorDDS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	//doorDDS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	//doorDDS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	//doorDDS.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	//doorDDS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	//treePsoDesc.DepthStencilState = doorDDS;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&treePsoDesc, IID_PPV_ARGS(&mPSOs["trees"])));
+
+
+
 
 	//
 	// PSO for opaque wireframe objects.
@@ -935,6 +1101,30 @@ void d3dApp::BuildMaterials()
 	icemirror3->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	icemirror3->Roughness = 0.5f;
 
+	auto treeMat1 = std::make_unique<Material>();
+	treeMat1->Name = "treeMat1";
+	treeMat1->MatCBIndex = 8;
+	treeMat1->DiffuseSrvHeapIndex = 5;
+	treeMat1->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	treeMat1->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	treeMat1->Roughness = 0.5f;
+
+	auto treeMat2 = std::make_unique<Material>();
+	treeMat2->Name = "treeMat2";
+	treeMat2->MatCBIndex = 9;
+	treeMat2->DiffuseSrvHeapIndex = 6;
+	treeMat2->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	treeMat2->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	treeMat2->Roughness = 0.5f;
+
+	auto grassMat = std::make_unique<Material>();
+	grassMat->Name = "grassMat";
+	grassMat->MatCBIndex = 10;
+	grassMat->DiffuseSrvHeapIndex = 7;
+	grassMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	grassMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	grassMat->Roughness = 0.5f;
+
 	mMaterials["bricks"] = std::move(bricks);
 	mMaterials["checkertile"] = std::move(checkertile);
 	mMaterials["icemirror"] = std::move(icemirror);
@@ -943,6 +1133,11 @@ void d3dApp::BuildMaterials()
 	mMaterials["skullMat"] = std::move(skullMat);
 	mMaterials["shadowMat"] = std::move(shadowMat);
 	mMaterials["waterMat"] = std::move(waterMat);
+	mMaterials["treeMat1"] = std::move(treeMat1);
+	mMaterials["treeMat2"] = std::move(treeMat2);
+	mMaterials["grassMat"] = std::move(grassMat);
+
+
 }
 
 void d3dApp::BuildRenderItems()
@@ -1000,7 +1195,6 @@ void d3dApp::BuildRenderItems()
 	mShadowedSkullRitemFloor = shadowedSkullRitemFloor.get();
 	mRitemLayer[(int)RenderLayer::Shadow].push_back(shadowedSkullRitemFloor.get());
 
-
 	auto doorRitemCenter = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&doorRitemCenter->World, XMMatrixScaling(1.2f, 1.2f, 1.2f) * XMMatrixRotationX(MathHelper::Pi / 2) * XMMatrixRotationZ(MathHelper::Pi / 2) * XMMatrixTranslation(0.0f, 7.0f, -22.0f));
 	doorRitemCenter->TexTransform = MathHelper::Identity4x4();
@@ -1049,6 +1243,80 @@ void d3dApp::BuildRenderItems()
 	carRitem->BaseVertexLocation = carRitem->Geo->DrawArgs["car"].BaseVertexLocation;
 	mRitemLayer[(int)RenderLayer::Car].push_back(carRitem.get());
 
+	auto treeRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&treeRitem->World, XMMatrixRotationX(-MathHelper::Pi / 2) * XMMatrixRotationY(-MathHelper::Pi / 2) * XMMatrixTranslation(-22.0f, 10.0f, -10.0f));
+	treeRitem->TexTransform = MathHelper::Identity4x4();
+	treeRitem->ObjCBIndex = 9;
+	treeRitem->Mat = mMaterials["treeMat1"].get();
+	treeRitem->Geo = mGeometries["treeGeo"].get();
+	treeRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	treeRitem->IndexCount = treeRitem->Geo->DrawArgs["tree"].IndexCount;
+	treeRitem->StartIndexLocation = treeRitem->Geo->DrawArgs["tree"].StartIndexLocation;
+	treeRitem->BaseVertexLocation = treeRitem->Geo->DrawArgs["tree"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Trees].push_back(treeRitem.get());
+
+	auto treeRitem1 = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&treeRitem1->World, XMMatrixRotationX(-MathHelper::Pi / 2)* XMMatrixRotationY(-MathHelper::Pi / 2)* XMMatrixTranslation(-25.0f, 10.0f, -15.0f));
+	treeRitem1->TexTransform = MathHelper::Identity4x4();
+	treeRitem1->ObjCBIndex = 10;
+	treeRitem1->Mat = mMaterials["treeMat1"].get();
+	treeRitem1->Geo = mGeometries["treeGeo"].get();
+	treeRitem1->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	treeRitem1->IndexCount = treeRitem1->Geo->DrawArgs["tree"].IndexCount;
+	treeRitem1->StartIndexLocation = treeRitem1->Geo->DrawArgs["tree"].StartIndexLocation;
+	treeRitem1->BaseVertexLocation = treeRitem1->Geo->DrawArgs["tree"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Trees].push_back(treeRitem1.get());
+
+	auto treeRitem2 = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&treeRitem2->World, XMMatrixRotationX(-MathHelper::Pi / 2)* XMMatrixRotationY(-MathHelper::Pi / 2)* XMMatrixTranslation(-22.0f, 10.0f, -5.0f));
+	treeRitem2->TexTransform = MathHelper::Identity4x4();
+	treeRitem2->ObjCBIndex = 11;
+	treeRitem2->Mat = mMaterials["treeMat1"].get();
+	treeRitem2->Geo = mGeometries["treeGeo"].get();
+	treeRitem2->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	treeRitem2->IndexCount = treeRitem2->Geo->DrawArgs["tree"].IndexCount;
+	treeRitem2->StartIndexLocation = treeRitem2->Geo->DrawArgs["tree"].StartIndexLocation;
+	treeRitem2->BaseVertexLocation = treeRitem2->Geo->DrawArgs["tree"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Trees].push_back(treeRitem2.get());
+
+	auto bushRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&bushRitem->World, XMMatrixRotationX(-MathHelper::Pi / 2)* XMMatrixRotationY(-MathHelper::Pi / 2)* XMMatrixTranslation(-22.0f, 1.0f, -10.0f));
+	bushRitem->TexTransform = MathHelper::Identity4x4();
+	bushRitem->ObjCBIndex = 12;
+	bushRitem->Mat = mMaterials["treeMat2"].get();
+	bushRitem->Geo = mGeometries["treeGeo"].get();
+	bushRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	bushRitem->IndexCount = bushRitem->Geo->DrawArgs["bush"].IndexCount;
+	bushRitem->StartIndexLocation = bushRitem->Geo->DrawArgs["bush"].StartIndexLocation;
+	bushRitem->BaseVertexLocation = bushRitem->Geo->DrawArgs["bush"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Trees].push_back(bushRitem.get());
+
+	auto grassRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&grassRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)* XMMatrixRotationY(-MathHelper::Pi / 2.0f)* XMMatrixTranslation(-30.0f, 0.0f, -10.0f));
+	grassRitem->TexTransform = MathHelper::Identity4x4();
+	grassRitem->ObjCBIndex = 13;
+	grassRitem->Mat = mMaterials["grassMat"].get();
+	grassRitem->Geo = mGeometries["roomGeo"].get();
+	grassRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	grassRitem->IndexCount = grassRitem->Geo->DrawArgs["floor"].IndexCount;
+	grassRitem->StartIndexLocation = grassRitem->Geo->DrawArgs["floor"].StartIndexLocation;
+	grassRitem->BaseVertexLocation = grassRitem->Geo->DrawArgs["floor"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(grassRitem.get());
+
+
+	auto grassSkull = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&grassSkull->World, XMMatrixScaling(0.75f, 0.75f, 0.75f) * XMMatrixRotationY(MathHelper::Pi) * XMMatrixTranslation(-18.0f, 2.0f, -10.0f));
+	grassSkull->TexTransform = MathHelper::Identity4x4();
+	grassSkull->ObjCBIndex = 14;
+	grassSkull->Mat = mMaterials["skullMat"].get();
+	grassSkull->Geo = mGeometries["skullGeo"].get();
+	grassSkull->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	grassSkull->IndexCount = grassSkull->Geo->DrawArgs["skull"].IndexCount;
+	grassSkull->StartIndexLocation = grassSkull->Geo->DrawArgs["skull"].StartIndexLocation;
+	grassSkull->BaseVertexLocation = grassSkull->Geo->DrawArgs["skull"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(grassSkull.get());
+
+
 	mAllRitems.push_back(std::move(floorRitem));
 	mAllRitems.push_back(std::move(wallsRitem));
 	mAllRitems.push_back(std::move(skullRitem));
@@ -1058,6 +1326,12 @@ void d3dApp::BuildRenderItems()
 	mAllRitems.push_back(std::move(doorRitemLeft));
 	mAllRitems.push_back(std::move(doorRitemRight));
 	mAllRitems.push_back(std::move(carRitem));
+	mAllRitems.push_back(std::move(treeRitem));
+	mAllRitems.push_back(std::move(treeRitem1));
+	mAllRitems.push_back(std::move(treeRitem2));
+	mAllRitems.push_back(std::move(bushRitem));
+	mAllRitems.push_back(std::move(grassRitem));
+	mAllRitems.push_back(std::move(grassSkull));
 }
 
 void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -1300,7 +1574,6 @@ void d3dApp::Update(const GameTimer& gt)
 	UpdateObjectCBs(gt);
 	UpdateMaterialCBs(gt);
 	UpdateMainPassCB(gt);
-	//UpdateReflectedPassCB(gt);
 }
 
 void d3dApp::Draw(const GameTimer& gt)
@@ -1376,6 +1649,12 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->SetPipelineState(mPSOs["car"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Car]);
 
+
+	// Draw mirror with transparency so reflection blends through.
+	mCommandList->SetPipelineState(mPSOs["trees"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Trees]);
+	
+
 	// Indicate a state transition on the resource usage.
 	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -1388,17 +1667,17 @@ void d3dApp::Draw(const GameTimer& gt)
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
-	// Swap the back and front buffers
-	ThrowIfFailed(mSwapChain->Present(0, 0));
-	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+// Swap the back and front buffers
+ThrowIfFailed(mSwapChain->Present(0, 0));
+mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
 
-	// Advance the fence value to mark commands up to this fence point.
-	mCurrFrameResource->Fence = ++mCurrentFence;
+// Advance the fence value to mark commands up to this fence point.
+mCurrFrameResource->Fence = ++mCurrentFence;
 
-	// Add an instruction to the command queue to set a new fence point. 
-	// Because we are on the GPU timeline, the new fence point won't be 
-	// set until the GPU finishes processing all the commands prior to this Signal().
-	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+// Add an instruction to the command queue to set a new fence point. 
+// Because we are on the GPU timeline, the new fence point won't be 
+// set until the GPU finishes processing all the commands prior to this Signal().
+mCommandQueue->Signal(mFence.Get(), mCurrentFence);
 }
 
 void d3dApp::OnMouseDown(WPARAM btnState, int x, int y)
@@ -1494,7 +1773,6 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 	XMStoreFloat4x4(&mShadowedSkullRitemFloor->World, skullWorld * S * shadowOffsetY);
 
 	mSkullRitem->NumFramesDirty = gNumFrameResources;
-	//mReflectedSkullRitem->NumFramesDirty = gNumFrameResources;
 	mShadowedSkullRitemWall->NumFramesDirty = gNumFrameResources;
 	mShadowedSkullRitemFloor->NumFramesDirty = gNumFrameResources;
 }
@@ -1513,8 +1791,6 @@ void d3dApp::UpdateCamera(const GameTimer& gt)
 
 	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
 	XMStoreFloat4x4(&mView, view);
-
-
 }
 
 void d3dApp::UpdateObjectCBs(const GameTimer& gt)

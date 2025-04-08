@@ -30,6 +30,7 @@ enum class RenderLayer : int
 	Car,
 	Transparent,
 	Shadow,
+	Trees,
 	Count
 };
 
@@ -108,6 +109,7 @@ private:
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
 	void BuildRoomGeometry();
+	void BuildTreeGeometry();
 	void BuildSkullGeometry();
 	void BuildCarGeometry();
 	void BuildPSOs();
