@@ -479,9 +479,18 @@ void d3dApp::BuildShadersAndInputLayout()
 		NULL, NULL
 	};
 
+	const D3D_SHADER_MACRO wavyDefines[] =
+	{
+		"WAVY", "1",
+		"FOG", "1",
+		"ALPHA_TEST", "1",
+		NULL, NULL
+	};
+
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", defines, "PS", "ps_5_0");
 	mShaders["alphaTestedPS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", alphaTestDefines, "PS", "ps_5_0");
+	mShaders["wavyVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", wavyDefines, "VS", "vs_5_0");
 
 	mInputLayout =
 	{
@@ -881,6 +890,12 @@ void d3dApp::BuildPSOs()
 
 	transparentPsoDesc.DepthStencilState = doorDDS;
 
+	//transparentPsoDesc.VS =
+	//{
+	//	reinterpret_cast<BYTE*>(mShaders["wavyVS"]->GetBufferPointer()),
+	//	mShaders["wavyVS"]->GetBufferSize()
+	//};
+
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&mPSOs["transparent"])));
 
 
@@ -972,11 +987,6 @@ void d3dApp::BuildPSOs()
 	shadowPsoDesc.DepthStencilState = shadowDSS;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&shadowPsoDesc, IID_PPV_ARGS(&mPSOs["shadow"])));
 
-
-
-
-
-
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC treePsoDesc = opaquePsoDesc;
 	D3D12_RENDER_TARGET_BLEND_DESC treeBlendDesc;
 	treeBlendDesc.BlendEnable = true;
@@ -992,35 +1002,56 @@ void d3dApp::BuildPSOs()
 	treePsoDesc.BlendState.RenderTarget[0] = treeBlendDesc;
 	treePsoDesc.BlendState.AlphaToCoverageEnable = true;
 
-
-	//D3D12_DEPTH_STENCIL_DESC doorDDS;
-	//doorDDS.DepthEnable = true;
-	//doorDDS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	//doorDDS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-	//doorDDS.StencilEnable = true;
-	//doorDDS.StencilReadMask = 0xff;
-	//doorDDS.StencilWriteMask = 0xff;
-
-	//doorDDS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-	//doorDDS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	//doorDDS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
-	//doorDDS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-
-	//doorDDS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-	//doorDDS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	//doorDDS.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
-	//doorDDS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-
-	//treePsoDesc.DepthStencilState = doorDDS;
+	D3D12_DEPTH_STENCIL_DESC treeDDS;
+	treeDDS.DepthEnable = true;
+	treeDDS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	treeDDS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	treeDDS.StencilEnable = true;
+	treeDDS.StencilReadMask = 0xff;
+	treeDDS.StencilWriteMask = 0xff;
+	treeDDS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	treeDDS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	treeDDS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	treeDDS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	treeDDS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	treeDDS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	treeDDS.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	treeDDS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	treePsoDesc.DepthStencilState = treeDDS;
+	treePsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["wavyVS"]->GetBufferPointer()),
+		mShaders["wavyVS"]->GetBufferSize()
+	};
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&treePsoDesc, IID_PPV_ARGS(&mPSOs["trees"])));
 
+	D3D12_DEPTH_STENCIL_DESC greenSkullDSS;
+	greenSkullDSS.DepthEnable = true;
+	greenSkullDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	greenSkullDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 
+	greenSkullDSS.StencilEnable = true;
+	greenSkullDSS.StencilReadMask = 0xff;
+	greenSkullDSS.StencilWriteMask = 0xff;
 
+	greenSkullDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	greenSkullDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	greenSkullDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	greenSkullDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	greenSkullDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	greenSkullDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	greenSkullDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	greenSkullDSS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC treeskullPsoDesc = opaquePsoDesc;
+	treeskullPsoDesc.DepthStencilState = greenSkullDSS;
+	//treeskullPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&treeskullPsoDesc, IID_PPV_ARGS(&mPSOs["treeskull"])));
 
 	//
 	// PSO for opaque wireframe objects.
 	//
-
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
 	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaqueWireframePsoDesc, IID_PPV_ARGS(&mPSOs["opaque_wireframe"])));
@@ -1125,6 +1156,14 @@ void d3dApp::BuildMaterials()
 	grassMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	grassMat->Roughness = 0.5f;
 
+	auto greenSkullMat = std::make_unique<Material>();
+	greenSkullMat->Name = "greenSkullMat";
+	greenSkullMat->MatCBIndex = 11;
+	greenSkullMat->DiffuseSrvHeapIndex = 3;
+	greenSkullMat->DiffuseAlbedo = XMFLOAT4(0.4f, 0.6f, 0.4f, 1.0f);
+	greenSkullMat->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+	greenSkullMat->Roughness = 0.3f;
+
 	mMaterials["bricks"] = std::move(bricks);
 	mMaterials["checkertile"] = std::move(checkertile);
 	mMaterials["icemirror"] = std::move(icemirror);
@@ -1136,8 +1175,7 @@ void d3dApp::BuildMaterials()
 	mMaterials["treeMat1"] = std::move(treeMat1);
 	mMaterials["treeMat2"] = std::move(treeMat2);
 	mMaterials["grassMat"] = std::move(grassMat);
-
-
+	mMaterials["greenSkullMat"] = std::move(greenSkullMat);
 }
 
 void d3dApp::BuildRenderItems()
@@ -1301,20 +1339,44 @@ void d3dApp::BuildRenderItems()
 	grassRitem->IndexCount = grassRitem->Geo->DrawArgs["floor"].IndexCount;
 	grassRitem->StartIndexLocation = grassRitem->Geo->DrawArgs["floor"].StartIndexLocation;
 	grassRitem->BaseVertexLocation = grassRitem->Geo->DrawArgs["floor"].BaseVertexLocation;
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(grassRitem.get());
+	mRitemLayer[(int)RenderLayer::Trees].push_back(grassRitem.get());
 
 
 	auto grassSkull = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&grassSkull->World, XMMatrixScaling(0.75f, 0.75f, 0.75f) * XMMatrixRotationY(MathHelper::Pi) * XMMatrixTranslation(-18.0f, 2.0f, -10.0f));
+	XMStoreFloat4x4(&grassSkull->World, XMMatrixScaling(0.55f, 0.55f, 0.55f) * XMMatrixRotationY(-MathHelper::Pi) * XMMatrixTranslation(-18.0f, 2.0f, -10.0f));
 	grassSkull->TexTransform = MathHelper::Identity4x4();
 	grassSkull->ObjCBIndex = 14;
-	grassSkull->Mat = mMaterials["skullMat"].get();
+	grassSkull->Mat = mMaterials["greenSkullMat"].get();
 	grassSkull->Geo = mGeometries["skullGeo"].get();
 	grassSkull->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	grassSkull->IndexCount = grassSkull->Geo->DrawArgs["skull"].IndexCount;
 	grassSkull->StartIndexLocation = grassSkull->Geo->DrawArgs["skull"].StartIndexLocation;
 	grassSkull->BaseVertexLocation = grassSkull->Geo->DrawArgs["skull"].BaseVertexLocation;
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(grassSkull.get());
+	mRitemLayer[(int)RenderLayer::TreeSkull].push_back(grassSkull.get());
+
+	auto treeRitem3 = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&treeRitem3->World, XMMatrixRotationX(-MathHelper::Pi / 2)* XMMatrixRotationY(-MathHelper::Pi / 2)* XMMatrixTranslation(-28.0f, 10.0f, -13.0f));
+	treeRitem3->TexTransform = MathHelper::Identity4x4();
+	treeRitem3->ObjCBIndex = 15;
+	treeRitem3->Mat = mMaterials["treeMat1"].get();
+	treeRitem3->Geo = mGeometries["treeGeo"].get();
+	treeRitem3->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	treeRitem3->IndexCount = treeRitem3->Geo->DrawArgs["tree"].IndexCount;
+	treeRitem3->StartIndexLocation = treeRitem3->Geo->DrawArgs["tree"].StartIndexLocation;
+	treeRitem3->BaseVertexLocation = treeRitem3->Geo->DrawArgs["tree"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Trees].push_back(treeRitem3.get());
+
+	auto treeRitem4 = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&treeRitem4->World, XMMatrixRotationX(-MathHelper::Pi / 2)* XMMatrixRotationY(-MathHelper::Pi / 2)* XMMatrixTranslation(-28.0f, 10.0f, -7.0f));
+	treeRitem4->TexTransform = MathHelper::Identity4x4();
+	treeRitem4->ObjCBIndex = 16;
+	treeRitem4->Mat = mMaterials["treeMat1"].get();
+	treeRitem4->Geo = mGeometries["treeGeo"].get();
+	treeRitem4->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	treeRitem4->IndexCount = treeRitem4->Geo->DrawArgs["tree"].IndexCount;
+	treeRitem4->StartIndexLocation = treeRitem4->Geo->DrawArgs["tree"].StartIndexLocation;
+	treeRitem4->BaseVertexLocation = treeRitem4->Geo->DrawArgs["tree"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Trees].push_back(treeRitem4.get());
 
 
 	mAllRitems.push_back(std::move(floorRitem));
@@ -1332,6 +1394,9 @@ void d3dApp::BuildRenderItems()
 	mAllRitems.push_back(std::move(bushRitem));
 	mAllRitems.push_back(std::move(grassRitem));
 	mAllRitems.push_back(std::move(grassSkull));
+	mAllRitems.push_back(std::move(treeRitem3));
+	mAllRitems.push_back(std::move(treeRitem4));
+
 }
 
 void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -1650,9 +1715,14 @@ void d3dApp::Draw(const GameTimer& gt)
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Car]);
 
 
+	mCommandList->OMSetStencilRef(3);
 	// Draw mirror with transparency so reflection blends through.
 	mCommandList->SetPipelineState(mPSOs["trees"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Trees]);
+
+	// Draw mirror with transparency so reflection blends through.
+	mCommandList->SetPipelineState(mPSOs["treeskull"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::TreeSkull]);
 	
 
 	// Indicate a state transition on the resource usage.

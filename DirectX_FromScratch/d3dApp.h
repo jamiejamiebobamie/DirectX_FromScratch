@@ -31,6 +31,7 @@ enum class RenderLayer : int
 	Transparent,
 	Shadow,
 	Trees,
+	TreeSkull,
 	Count
 };
 

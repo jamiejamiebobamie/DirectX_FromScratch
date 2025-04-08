@@ -96,16 +96,28 @@ struct VertexOut
 VertexOut VS(VertexIn vin)
 {
     VertexOut vout = (VertexOut) 0.0f;
+    
+    float3 modifier = float3(0.0f, 0.0f, 0.0f);
+    float4 modifier2 = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    
 	
+    #ifdef WAVY
+	    modifier = float3(sin(cos(gTotalTime)/2.0f * vin.PosL.x)/4.0f, cos(sin(gTotalTime)/2.0f * vin.PosL.y)/4.0f, sin(sin(gTotalTime)/2.0f * vin.PosL.z)/4.0f);
+    #endif    
+    
     // Transform to world space.
-    float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
+    float4 posW = mul(float4(vin.PosL + modifier, 1.0f), gWorld);
     vout.PosW = posW.xyz;
 
     // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
     vout.NormalW = mul(vin.NormalL, (float3x3) gWorld);
+    
+    #ifdef WAVY
+	  //  modifier2 = float4(sin(cos(gTotalTime)/2.0f * posW.x)/4.0f, cos(sin(gTotalTime)/2.0f * posW.y)/4.0f, sin(sin(gTotalTime)/2.0f * posW.z)/4.0f, 1.0f);
+    #endif    
 
     // Transform to homogeneous clip space.
-    vout.PosH = mul(posW, gViewProj);
+    vout.PosH = mul(posW + modifier2, gViewProj);
 	
 	// Output vertex attributes for interpolation across triangle.
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
