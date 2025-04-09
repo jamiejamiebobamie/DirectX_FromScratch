@@ -342,6 +342,14 @@ void d3dApp::LoadTextures()
 		mCommandList.Get(), puddlesTex->Filename.c_str(),
 		puddlesTex->Resource, puddlesTex->UploadHeap));
 
+	auto bricks2Tex = std::make_unique<Texture>();
+	bricks2Tex->Name = "bricks2Tex";
+	bricks2Tex->Filename = L"Textures/bricks2.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), bricks2Tex->Filename.c_str(),
+		bricks2Tex->Resource, bricks2Tex->UploadHeap));
+
+
 	mTextures[bricksTex->Name] = std::move(bricksTex);
 	mTextures[checkboardTex->Name] = std::move(checkboardTex);
 	mTextures[iceTex->Name] = std::move(iceTex);
@@ -351,6 +359,7 @@ void d3dApp::LoadTextures()
 	mTextures[treeTex2->Name] = std::move(treeTex2);
 	mTextures[grassTex->Name] = std::move(grassTex);
 	mTextures[puddlesTex->Name] = std::move(puddlesTex);
+	mTextures[bricks2Tex->Name] = std::move(bricks2Tex);
 }
 
 void d3dApp::BuildDescriptorHeaps()
@@ -359,7 +368,7 @@ void d3dApp::BuildDescriptorHeaps()
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 9;
+	srvHeapDesc.NumDescriptors = 10;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -378,6 +387,7 @@ void d3dApp::BuildDescriptorHeaps()
 	auto treeTex2 = mTextures["treeTex2"]->Resource;
 	auto grassTex = mTextures["grassTex"]->Resource;
 	auto puddlesTex = mTextures["puddlesTex"]->Resource;
+	auto bricks2Tex = mTextures["bricks2Tex"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -435,6 +445,11 @@ void d3dApp::BuildDescriptorHeaps()
 	srvDesc.Format = puddlesTex->GetDesc().Format;
 	md3dDevice->CreateShaderResourceView(puddlesTex.Get(), &srvDesc, hDescriptor);
 
+	// next descriptor
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = bricks2Tex->GetDesc().Format;
+	md3dDevice->CreateShaderResourceView(bricks2Tex.Get(), &srvDesc, hDescriptor);
 }
 
 void d3dApp::BuildRootSignature()
@@ -1114,6 +1129,67 @@ void d3dApp::BuildPSOs()
 
 
 
+
+
+
+
+	D3D12_DEPTH_STENCIL_DESC xrayDSS;
+	xrayDSS.DepthEnable = true;
+	xrayDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	xrayDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+
+	xrayDSS.StencilEnable = true;
+	xrayDSS.StencilReadMask = 0xff;
+	xrayDSS.StencilWriteMask = 0xff;
+
+	xrayDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	xrayDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	xrayDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	xrayDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	xrayDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	xrayDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	xrayDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	xrayDSS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC xrayPsoDesc = opaquePsoDesc;
+	xrayPsoDesc.DepthStencilState = xrayDSS;
+	//xrayPsoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;
+	//xrayPsoDesc.BlendState.RenderTarget[0] = xrayBlendDesc;
+	//xrayPsoDesc.BlendState.AlphaToCoverageEnable = true;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&xrayPsoDesc, IID_PPV_ARGS(&mPSOs["xrayplane"])));
+
+
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC xrayObjPsoDesc = carPsoDesc;
+	D3D12_DEPTH_STENCIL_DESC xrayObjDDS;
+	xrayObjDDS.DepthEnable = true;
+	xrayObjDDS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	xrayObjDDS.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+
+	xrayObjDDS.StencilEnable = true;
+	xrayObjDDS.StencilReadMask = 0xff;
+	xrayObjDDS.StencilWriteMask = 0xff;
+
+	xrayObjDDS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	xrayObjDDS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	xrayObjDDS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	xrayObjDDS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	xrayObjDDS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	xrayObjDDS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	xrayObjDDS.BackFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	xrayObjDDS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	xrayObjPsoDesc.DepthStencilState = xrayObjDDS;
+
+	//xrayObjPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	//xrayObjPsoDesc.RasterizerState.FrontCounterClockwise = true;
+
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&xrayObjPsoDesc, IID_PPV_ARGS(&mPSOs["xrayobject"])));
+
+
+
 	//
 	// PSO for opaque wireframe objects.
 	//
@@ -1237,6 +1313,22 @@ void d3dApp::BuildMaterials()
 	puddleMat->FresnelR0 = XMFLOAT3(2.333f, 2.333f, 2.333f);
 	puddleMat->Roughness = 0.1f;
 
+	auto bricks2Mat = std::make_unique<Material>();
+	bricks2Mat->Name = "bricks2Mat";
+	bricks2Mat->MatCBIndex = 13;
+	bricks2Mat->DiffuseSrvHeapIndex = 9;
+	bricks2Mat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	bricks2Mat->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+	bricks2Mat->Roughness = 0.7f;
+
+	auto xrayMat = std::make_unique<Material>();
+	xrayMat->Name = "xrayMat";
+	xrayMat->MatCBIndex = 14;
+	xrayMat->DiffuseSrvHeapIndex = 3;
+	xrayMat->DiffuseAlbedo = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	xrayMat->FresnelR0 = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	xrayMat->Roughness = 1.0f;
+
 	mMaterials["bricks"] = std::move(bricks);
 	mMaterials["checkertile"] = std::move(checkertile);
 	mMaterials["icemirror"] = std::move(icemirror);
@@ -1250,6 +1342,8 @@ void d3dApp::BuildMaterials()
 	mMaterials["grassMat"] = std::move(grassMat);
 	mMaterials["greenSkullMat"] = std::move(greenSkullMat);
 	mMaterials["puddleMat"] = std::move(puddleMat);
+	mMaterials["bricks2Mat"] = std::move(bricks2Mat);
+	mMaterials["xrayMat"] = std::move(xrayMat);
 }
 
 void d3dApp::BuildRenderItems()
@@ -1470,9 +1564,43 @@ void d3dApp::BuildRenderItems()
 	reflectedSkullRitem->ObjCBIndex = 18;
 	mReflectedSkullRitem = reflectedSkullRitem.get();
 	mRitemLayer[(int)RenderLayer::Reflected].push_back(reflectedSkullRitem.get());
-	//mRitemLayer[(int)RenderLayer::Opaque].push_back(reflectedSkullRitem.get());
 
+	auto pane1Ritem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&pane1Ritem->World, XMMatrixScaling(0.75f, 0.75f, 0.75f) * XMMatrixRotationX(-MathHelper::Pi / 2.0f) * XMMatrixTranslation(5.0f, 15.0f, -7.0f));
+	pane1Ritem->TexTransform = MathHelper::Identity4x4();
+	pane1Ritem->ObjCBIndex = 19;
+	pane1Ritem->Mat = mMaterials["bricks2Mat"].get();
+	pane1Ritem->Geo = mGeometries["roomGeo"].get();
+	pane1Ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	pane1Ritem->IndexCount = pane1Ritem->Geo->DrawArgs["mirror"].IndexCount;
+	pane1Ritem->StartIndexLocation = pane1Ritem->Geo->DrawArgs["mirror"].StartIndexLocation;
+	pane1Ritem->BaseVertexLocation = pane1Ritem->Geo->DrawArgs["mirror"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::XRayPlane].push_back(pane1Ritem.get());
 
+	auto pane2Ritem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&pane2Ritem->World, XMMatrixScaling(0.75f, 0.75f, 0.75f)* XMMatrixRotationX(-MathHelper::Pi / 2.0f)* XMMatrixTranslation(-5.0f, 15.0f, -7.0f));
+	pane2Ritem->TexTransform = MathHelper::Identity4x4();
+	pane2Ritem->ObjCBIndex = 20;
+	pane2Ritem->Mat = mMaterials["bricks2Mat"].get();
+	pane2Ritem->Geo = mGeometries["roomGeo"].get();
+	pane2Ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	pane2Ritem->IndexCount = pane2Ritem->Geo->DrawArgs["mirror"].IndexCount;
+	pane2Ritem->StartIndexLocation = pane2Ritem->Geo->DrawArgs["mirror"].StartIndexLocation;
+	pane2Ritem->BaseVertexLocation = pane2Ritem->Geo->DrawArgs["mirror"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::XRayPlane].push_back(pane2Ritem.get());
+
+	auto xRaySkullRitem = std::make_unique<RenderItem>();
+	xRaySkullRitem->World = MathHelper::Identity4x4();
+	xRaySkullRitem->TexTransform = MathHelper::Identity4x4();
+	xRaySkullRitem->ObjCBIndex = 2;
+	xRaySkullRitem->Mat = mMaterials["xrayMat"].get();
+	xRaySkullRitem->Geo = mGeometries["skullGeo"].get();
+	xRaySkullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	xRaySkullRitem->IndexCount = xRaySkullRitem->Geo->DrawArgs["skull"].IndexCount;
+	xRaySkullRitem->StartIndexLocation = xRaySkullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
+	xRaySkullRitem->BaseVertexLocation = xRaySkullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
+	mXraySkullRitem = xRaySkullRitem.get();
+	mRitemLayer[(int)RenderLayer::XRayObject].push_back(xRaySkullRitem.get());
 
 	mAllRitems.push_back(std::move(floorRitem));
 	mAllRitems.push_back(std::move(wallsRitem));
@@ -1493,7 +1621,9 @@ void d3dApp::BuildRenderItems()
 	mAllRitems.push_back(std::move(treeRitem4));
 	mAllRitems.push_back(std::move(puddleRitem));
 	mAllRitems.push_back(std::move(reflectedSkullRitem));
-
+	mAllRitems.push_back(std::move(pane1Ritem));
+	mAllRitems.push_back(std::move(pane2Ritem));
+	mAllRitems.push_back(std::move(xRaySkullRitem));
 }
 
 void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -1829,6 +1959,14 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	mCommandList->SetPipelineState(mPSOs["reflected"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Reflected]);
+
+
+	mCommandList->OMSetStencilRef(7);
+	mCommandList->SetPipelineState(mPSOs["xrayplane"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::XRayPlane]);
+
+	mCommandList->SetPipelineState(mPSOs["xrayobject"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::XRayObject]);
 	
 
 	// Indicate a state transition on the resource usage.
@@ -1935,6 +2073,7 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 	XMMATRIX skullWorld = skullRotate * skullScale * skullOffset;
 	XMStoreFloat4x4(&mSkullRitem->World, skullWorld);
 
+	XMStoreFloat4x4(&mXraySkullRitem->World, skullWorld);
 
 	// Update reflection world matrix.
 	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // xz plane
@@ -1958,6 +2097,7 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 	mShadowedSkullRitemWall->NumFramesDirty = gNumFrameResources;
 	mShadowedSkullRitemFloor->NumFramesDirty = gNumFrameResources;
 	mReflectedSkullRitem->NumFramesDirty = gNumFrameResources;
+	mXraySkullRitem->NumFramesDirty = gNumFrameResources;
 }
 
 void d3dApp::UpdateCamera(const GameTimer& gt)

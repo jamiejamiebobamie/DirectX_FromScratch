@@ -34,6 +34,8 @@ enum class RenderLayer : int
 	TreeSkull,
 	Puddle,
 	Reflected,
+	XRayPlane,
+	XRayObject,
 	Count
 };
 
@@ -144,6 +146,7 @@ private:
 
 	// Cache render items of interest.
 	RenderItem* mSkullRitem = nullptr;
+	RenderItem* mXraySkullRitem = nullptr;
 	RenderItem* mReflectedSkullRitem = nullptr;
 	RenderItem* mShadowedSkullRitemWall = nullptr;
 	RenderItem* mShadowedSkullRitemFloor = nullptr;
