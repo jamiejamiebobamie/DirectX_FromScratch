@@ -335,6 +335,13 @@ void d3dApp::LoadTextures()
 		mCommandList.Get(), grassTex->Filename.c_str(),
 		grassTex->Resource, grassTex->UploadHeap));
 
+	auto puddlesTex = std::make_unique<Texture>();
+	puddlesTex->Name = "puddlesTex";
+	puddlesTex->Filename = L"Textures/puddles.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), puddlesTex->Filename.c_str(),
+		puddlesTex->Resource, puddlesTex->UploadHeap));
+
 	mTextures[bricksTex->Name] = std::move(bricksTex);
 	mTextures[checkboardTex->Name] = std::move(checkboardTex);
 	mTextures[iceTex->Name] = std::move(iceTex);
@@ -343,8 +350,7 @@ void d3dApp::LoadTextures()
 	mTextures[treeTex->Name] = std::move(treeTex);
 	mTextures[treeTex2->Name] = std::move(treeTex2);
 	mTextures[grassTex->Name] = std::move(grassTex);
-
-
+	mTextures[puddlesTex->Name] = std::move(puddlesTex);
 }
 
 void d3dApp::BuildDescriptorHeaps()
@@ -353,7 +359,7 @@ void d3dApp::BuildDescriptorHeaps()
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 8;
+	srvHeapDesc.NumDescriptors = 9;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -371,7 +377,7 @@ void d3dApp::BuildDescriptorHeaps()
 	auto treeTex = mTextures["treeTex"]->Resource;
 	auto treeTex2 = mTextures["treeTex2"]->Resource;
 	auto grassTex = mTextures["grassTex"]->Resource;
-
+	auto puddlesTex = mTextures["puddlesTex"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -422,6 +428,13 @@ void d3dApp::BuildDescriptorHeaps()
 
 	srvDesc.Format = grassTex->GetDesc().Format;
 	md3dDevice->CreateShaderResourceView(grassTex.Get(), &srvDesc, hDescriptor);
+
+	// next descriptor
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = puddlesTex->GetDesc().Format;
+	md3dDevice->CreateShaderResourceView(puddlesTex.Get(), &srvDesc, hDescriptor);
+
 }
 
 void d3dApp::BuildRootSignature()
@@ -868,8 +881,6 @@ void d3dApp::BuildPSOs()
 	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
 
-
-
 	D3D12_DEPTH_STENCIL_DESC doorDDS;
 	doorDDS.DepthEnable = true;
 	doorDDS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
@@ -1046,8 +1057,62 @@ void d3dApp::BuildPSOs()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC treeskullPsoDesc = opaquePsoDesc;
 	treeskullPsoDesc.DepthStencilState = greenSkullDSS;
-	//treeskullPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&treeskullPsoDesc, IID_PPV_ARGS(&mPSOs["treeskull"])));
+
+
+	D3D12_DEPTH_STENCIL_DESC puddleDSS;
+	puddleDSS.DepthEnable = true;
+	puddleDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	puddleDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+
+	puddleDSS.StencilEnable = true;
+	puddleDSS.StencilReadMask = 0xff;
+	puddleDSS.StencilWriteMask = 0xff;
+
+	puddleDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	puddleDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	puddleDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	puddleDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	puddleDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	puddleDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	puddleDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	puddleDSS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC puddlePsoDesc = transparentPsoDesc;
+	puddlePsoDesc.DepthStencilState = puddleDSS;
+	puddlePsoDesc.BlendState.AlphaToCoverageEnable = true;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&puddlePsoDesc, IID_PPV_ARGS(&mPSOs["puddle"])));
+
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectedPsoDesc = carPsoDesc;
+	D3D12_DEPTH_STENCIL_DESC reflectedDDS;
+	reflectedDDS.DepthEnable = false;
+	reflectedDDS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	reflectedDDS.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+
+	reflectedDDS.StencilEnable = true;
+	reflectedDDS.StencilReadMask = 0xff;
+	reflectedDDS.StencilWriteMask = 0xff;
+
+	reflectedDDS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectedDDS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectedDDS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	reflectedDDS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	reflectedDDS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectedDDS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectedDDS.BackFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	reflectedDDS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	reflectedPsoDesc.DepthStencilState = reflectedDDS;
+
+	reflectedPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	reflectedPsoDesc.RasterizerState.FrontCounterClockwise = true;
+
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&reflectedPsoDesc, IID_PPV_ARGS(&mPSOs["reflected"])));
+
+
 
 	//
 	// PSO for opaque wireframe objects.
@@ -1164,6 +1229,14 @@ void d3dApp::BuildMaterials()
 	greenSkullMat->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
 	greenSkullMat->Roughness = 0.3f;
 
+	auto puddleMat = std::make_unique<Material>();
+	puddleMat->Name = "puddleMat";
+	puddleMat->MatCBIndex = 12;
+	puddleMat->DiffuseSrvHeapIndex = 8;
+	puddleMat->DiffuseAlbedo = XMFLOAT4(0.2f, 0.5f, 0.7f, 0.4f);
+	puddleMat->FresnelR0 = XMFLOAT3(2.333f, 2.333f, 2.333f);
+	puddleMat->Roughness = 0.1f;
+
 	mMaterials["bricks"] = std::move(bricks);
 	mMaterials["checkertile"] = std::move(checkertile);
 	mMaterials["icemirror"] = std::move(icemirror);
@@ -1176,6 +1249,7 @@ void d3dApp::BuildMaterials()
 	mMaterials["treeMat2"] = std::move(treeMat2);
 	mMaterials["grassMat"] = std::move(grassMat);
 	mMaterials["greenSkullMat"] = std::move(greenSkullMat);
+	mMaterials["puddleMat"] = std::move(puddleMat);
 }
 
 void d3dApp::BuildRenderItems()
@@ -1378,6 +1452,27 @@ void d3dApp::BuildRenderItems()
 	treeRitem4->BaseVertexLocation = treeRitem4->Geo->DrawArgs["tree"].BaseVertexLocation;
 	mRitemLayer[(int)RenderLayer::Trees].push_back(treeRitem4.get());
 
+	auto puddleRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&puddleRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)* XMMatrixRotationY(-MathHelper::Pi / 2.0f)* XMMatrixTranslation(0.0f, 0.1f, -10.0f));
+	puddleRitem->TexTransform = MathHelper::Identity4x4();
+	puddleRitem->ObjCBIndex = 17;
+	puddleRitem->Mat = mMaterials["puddleMat"].get();
+	puddleRitem->Geo = mGeometries["roomGeo"].get();
+	puddleRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	puddleRitem->IndexCount = puddleRitem->Geo->DrawArgs["floor"].IndexCount;
+	puddleRitem->StartIndexLocation = puddleRitem->Geo->DrawArgs["floor"].StartIndexLocation;
+	puddleRitem->BaseVertexLocation = puddleRitem->Geo->DrawArgs["floor"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Puddle].push_back(puddleRitem.get());
+
+	// Reflected skull will have different world matrix, so it needs to be its own render item.
+	auto reflectedSkullRitem = std::make_unique<RenderItem>();
+	*reflectedSkullRitem = *skullRitem;
+	reflectedSkullRitem->ObjCBIndex = 18;
+	mReflectedSkullRitem = reflectedSkullRitem.get();
+	mRitemLayer[(int)RenderLayer::Reflected].push_back(reflectedSkullRitem.get());
+	//mRitemLayer[(int)RenderLayer::Opaque].push_back(reflectedSkullRitem.get());
+
+
 
 	mAllRitems.push_back(std::move(floorRitem));
 	mAllRitems.push_back(std::move(wallsRitem));
@@ -1396,6 +1491,8 @@ void d3dApp::BuildRenderItems()
 	mAllRitems.push_back(std::move(grassSkull));
 	mAllRitems.push_back(std::move(treeRitem3));
 	mAllRitems.push_back(std::move(treeRitem4));
+	mAllRitems.push_back(std::move(puddleRitem));
+	mAllRitems.push_back(std::move(reflectedSkullRitem));
 
 }
 
@@ -1639,6 +1736,7 @@ void d3dApp::Update(const GameTimer& gt)
 	UpdateObjectCBs(gt);
 	UpdateMaterialCBs(gt);
 	UpdateMainPassCB(gt);
+	UpdateReflectedPassCB(gt);
 }
 
 void d3dApp::Draw(const GameTimer& gt)
@@ -1723,6 +1821,14 @@ void d3dApp::Draw(const GameTimer& gt)
 	// Draw mirror with transparency so reflection blends through.
 	mCommandList->SetPipelineState(mPSOs["treeskull"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::TreeSkull]);
+
+
+	mCommandList->OMSetStencilRef(5);
+	mCommandList->SetPipelineState(mPSOs["puddle"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Puddle]);
+
+	mCommandList->SetPipelineState(mPSOs["reflected"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Reflected]);
 	
 
 	// Indicate a state transition on the resource usage.
@@ -1829,6 +1935,12 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 	XMMATRIX skullWorld = skullRotate * skullScale * skullOffset;
 	XMStoreFloat4x4(&mSkullRitem->World, skullWorld);
 
+
+	// Update reflection world matrix.
+	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // xz plane
+	XMMATRIX R = XMMatrixReflect(mirrorPlane);
+	XMStoreFloat4x4(&mReflectedSkullRitem->World, skullWorld * R);
+
 	// Update shadow world matrix.
 	XMVECTOR shadowPlane = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f); // xy plane
 	XMVECTOR toMainLight = -XMLoadFloat3(&mMainPassCB.Lights[0].Direction);
@@ -1845,6 +1957,7 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 	mSkullRitem->NumFramesDirty = gNumFrameResources;
 	mShadowedSkullRitemWall->NumFramesDirty = gNumFrameResources;
 	mShadowedSkullRitemFloor->NumFramesDirty = gNumFrameResources;
+	mReflectedSkullRitem->NumFramesDirty = gNumFrameResources;
 }
 
 void d3dApp::UpdateCamera(const GameTimer& gt)
@@ -1955,7 +2068,7 @@ void d3dApp::UpdateReflectedPassCB(const GameTimer& gt)
 {
 	mReflectedPassCB = mMainPassCB;
 
-	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
+	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // xz plane
 	XMMATRIX R = XMMatrixReflect(mirrorPlane);
 
 	// Reflect the lighting.

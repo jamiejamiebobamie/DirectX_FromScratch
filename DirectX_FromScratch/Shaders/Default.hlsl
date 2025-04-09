@@ -102,7 +102,7 @@ VertexOut VS(VertexIn vin)
     
 	
     #ifdef WAVY
-	    modifier = float3(sin(cos(gTotalTime)/2.0f * vin.PosL.x)/4.0f, cos(sin(gTotalTime)/2.0f * vin.PosL.y)/4.0f, sin(sin(gTotalTime)/2.0f * vin.PosL.z)/4.0f);
+	   // modifier = float3(sin(cos(gTotalTime)/2.0f * vin.PosL.x)/4.0f, cos(sin(gTotalTime)/2.0f * vin.PosL.y)/4.0f, sin(sin(gTotalTime)/2.0f * vin.PosL.z)/4.0f);
     #endif    
     
     // Transform to world space.
