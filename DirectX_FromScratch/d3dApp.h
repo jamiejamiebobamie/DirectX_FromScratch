@@ -26,16 +26,9 @@ using namespace DirectX::PackedVector;
 enum class RenderLayer : int
 {
 	Opaque = 0,
-	Skull,
-	Car,
 	Transparent,
-	Shadow,
 	Trees,
-	TreeSkull,
-	Puddle,
-	Reflected,
-	XRayPlane,
-	XRayObject,
+	ViewWindow,
 	Count
 };
 
