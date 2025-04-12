@@ -20,16 +20,6 @@
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
-Texture2D    gDiffuseMap : register(t0);
-
-
-SamplerState gsamPointWrap        : register(s0);
-SamplerState gsamPointClamp       : register(s1);
-SamplerState gsamLinearWrap       : register(s2);
-SamplerState gsamLinearClamp      : register(s3);
-SamplerState gsamAnisotropicWrap  : register(s4);
-SamplerState gsamAnisotropicClamp : register(s5);
-
 // Constant data that varies per frame.
 cbuffer cbPerObject : register(b0)
 {
@@ -80,7 +70,6 @@ struct VertexIn
 {
 	float3 PosL    : POSITION;
     float3 NormalL : NORMAL;
-	float2 TexC    : TEXCOORD;
 };
 
 struct VertexOut
@@ -88,7 +77,14 @@ struct VertexOut
 	float4 PosH    : SV_POSITION;
     float3 PosW    : POSITION;
     float3 NormalW : NORMAL;
-	float2 TexC    : TEXCOORD;
+};
+
+struct GeoOut
+{
+    float4 PosH : SV_POSITION;
+    float3 PosW : POSITION;
+    float3 NormalW : NORMAL;
+    uint PrimID : SV_PrimitiveID;
 };
 
 VertexOut VS(VertexIn vin)
@@ -104,24 +100,41 @@ VertexOut VS(VertexIn vin)
 
     // Transform to homogeneous clip space.
     vout.PosH = mul(posW, gViewProj);
-	
-	// Output vertex attributes for interpolation across triangle.
-	float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
-	vout.TexC = mul(texC, gMatTransform).xy;
 
     return vout;
 }
 
+[maxvertexcount(2)]
+void GS(line VertexOut gin[2],
+        uint primID : SV_PrimitiveID,
+        inout LineStream<GeoOut> lineStream)
+{
+
+    float3 up = float3(0.0f, 1.0f, 0.0f);
+    float3 down = up * -1.0f;
+
+    float4 v[2];
+    v[0] = float4(gin[0].PosW + up, 1.0f);
+    v[1] = float4(gin[0].PosW + down, 1.0f);
+	
+	
+    GeoOut gout;
+	[unroll]
+    for (int i = 0; i < 2; ++i)
+    {
+        gout.PosH = mul(v[i], gViewProj);
+        gout.PosW = v[i].xyz;
+        gout.NormalW = normalize(i == 0 ? v[i].xyz - up : v[i].xyz - down);
+        gout.PrimID = primID;
+		
+        lineStream.Append(gout);
+    }
+    //lineStream.RestartStrip();
+}
+
 float4 PS(VertexOut pin) : SV_Target
 {
-    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
-	
-#ifdef ALPHA_TEST
-	// Discard pixel if texture alpha < 0.1.  We do this test as soon 
-	// as possible in the shader so that we can potentially exit the
-	// shader early, thereby skipping the rest of the shader code.
-	clip(diffuseAlbedo.a - 0.1f);
-#endif
+    float4 diffuseAlbedo = gDiffuseAlbedo;
 
     // Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
@@ -141,11 +154,6 @@ float4 PS(VertexOut pin) : SV_Target
         pin.NormalW, toEyeW, shadowFactor);
 
     float4 litColor = ambient + directLight;
-
-#ifdef FOG
-	float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
-	litColor = lerp(litColor, gFogColor, fogAmount);
-#endif
 
     // Common convention to take alpha from diffuse albedo.
     litColor.a = diffuseAlbedo.a;
