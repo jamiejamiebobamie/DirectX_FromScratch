@@ -91,7 +91,7 @@ struct GeoOut
 };
 
 
-void Subdivide(inout GeoOut inVerts[3], inout GeoOut outVerts[6])
+void Subdivide(GeoOut inVerts[3], inout GeoOut outVerts[6])
 {
 
 	//       v1
@@ -124,11 +124,32 @@ void Subdivide(inout GeoOut inVerts[3], inout GeoOut outVerts[6])
     outVerts[3] = m[1];
     outVerts[4] = inVerts[2];
     outVerts[5] = inVerts[1];
-    
-    
-    inVerts[1] = m[0];
-    inVerts[2] = m[2];
+}
 
+void OutputTriangles(GeoOut vMiniOut[6], inout TriangleStream<GeoOut> triStream)
+{
+            [unroll]
+    for (int i = 0; i < 6; i++)
+    {
+        vMiniOut[i].PosH = mul(float4(vMiniOut[i].PosW, 1.0f), gViewProj);
+        vMiniOut[i].Color = float4(vMiniOut[i].PosW / .25f, 0.33f);
+        triStream.Append(vMiniOut[i]);
+    }
+    triStream.RestartStrip();
+    triStream.Append(vMiniOut[1]);
+    triStream.Append(vMiniOut[5]);
+    triStream.Append(vMiniOut[3]);
+    triStream.RestartStrip();
+}
+
+void UpdateVinIn(int i, int j, int k, out GeoOut vIn[3], GeoOut vOut[6])
+{
+    vIn[0].PosW = vOut[i].PosW;
+    vIn[0].NormalW = vOut[i].NormalW;
+    vIn[1].PosW = vOut[j].PosW;
+    vIn[1].NormalW = vOut[j].NormalW;
+    vIn[2].PosW = vOut[k].PosW;
+    vIn[2].NormalW = vOut[k].NormalW;
 }
 
 VertexOut VS(VertexIn vin)
@@ -162,7 +183,8 @@ void GS(triangle VertexOut gin[3],
        
     float d = distance(gEyePosW, meanVec);
     
-    int iters = d < 7 ? 2 : d >= 14 ? 0 : 1;
+//    int iters = d < 5 ? 2 : d >= 6 ? 0 : 1;
+    int iters = d < 4 ? 2 : d >= 5 ? 0 : 1;
     
     GeoOut vIn[3];
     vIn[0].PosW = gin[0].PosW;
@@ -171,40 +193,64 @@ void GS(triangle VertexOut gin[3],
     vIn[1].NormalW = gin[1].NormalW;
     vIn[2].PosW = gin[2].PosW;
     vIn[2].NormalW = gin[2].NormalW;
-
-    [unroll]
-    for (int j = 0; j < iters; j++)
-    {
-        GeoOut vOut[6];
-        Subdivide(vIn, vOut);
-    	[unroll]
-        for (int i = 0; i < 6; i++)
-        {
-            vOut[i].PosH = mul(float4(vOut[i].PosW, 1.0f), gViewProj);
-            vOut[i].Color = float4(vOut[i].PosW, 1.0f);
-            triStream.Append(vOut[i]);
-            if (i % 3 == 0) triStream.RestartStrip();
-        }
-    }
     
     if (iters == 0)
     {
+        [unroll]
         for (int i = 0; i < 3; i++)
         {
             vIn[i].PosH = mul(float4(vIn[i].PosW, 1.0f), gViewProj);
-            vIn[i].Color = float4(vIn[i].PosW, 1.0f);
+            vIn[i].Color = float4(1.0f, 1.0f, 1.0f, 0.33f); // vIn[i].PosW
             triStream.Append(vIn[i]);
-   //         if (i % 3 == 0)
-     //           triStream.RestartStrip();
         }
+    }
+    else if (iters == 1)
+    {
+        GeoOut vOut[6];
+        Subdivide(vIn, vOut);
+        [unroll]
+        for (int i = 0; i < 6; i++)
+        {
+            vOut[i].PosH = mul(float4(vOut[i].PosW, 1.0f), gViewProj);
+            vOut[i].Color = float4(vOut[i].PosW / 0.5f, 0.33f);
+            triStream.Append(vOut[i]);
+        }
+        triStream.RestartStrip();
+        triStream.Append(vOut[1]);
+        triStream.Append(vOut[5]);
+        triStream.Append(vOut[3]);
+    }
+    else if (iters == 2)
+    {
+        GeoOut vOut[6];
+        // initial subdivide
+        Subdivide(vIn, vOut);
+        
+        GeoOut vMiniOut[6];
+        // ---- #1
+        UpdateVinIn(0, 1, 2, vIn, vOut);
+        Subdivide(vIn, vMiniOut);
+        OutputTriangles(vMiniOut, triStream);
+        // ---- #2
+        UpdateVinIn(1, 5, 3, vIn, vOut);
+        Subdivide(vIn, vMiniOut);
+        OutputTriangles(vMiniOut, triStream);
+        // ---- #3
+        UpdateVinIn(1, 3, 2, vIn, vOut);
+        Subdivide(vIn, vMiniOut);
+        OutputTriangles(vMiniOut, triStream);
+        // ---- #4
+        UpdateVinIn(2, 3, 4, vIn, vOut);
+        Subdivide(vIn, vMiniOut);
+        OutputTriangles(vMiniOut, triStream);
     }
 }
 
 
-
-float4 PS(VertexOut pin) : SV_Target
+float4 PS(GeoOut pin) : SV_Target
 {
-    float4 diffuseAlbedo = gDiffuseAlbedo;;
+    float4 diffuseAlbedo = pin.Color;//
+    //gDiffuseAlbedo;;
     //pin.Color;
     //gDiffuseAlbedo;
 
