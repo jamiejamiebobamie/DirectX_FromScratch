@@ -308,7 +308,7 @@ void d3dApp::BuildRootSignature()
 void d3dApp::BuildShadersAndInputLayout()
 {
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_0");
-	//mShaders["standardGS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "GS", "gs_5_0");
+	mShaders["standardGS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "GS", "gs_5_0");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "PS", "ps_5_0");
 
 	mStdInputLayout =
@@ -381,11 +381,11 @@ void d3dApp::BuildPSOs()
 		reinterpret_cast<BYTE*>(mShaders["standardVS"]->GetBufferPointer()),
 		mShaders["standardVS"]->GetBufferSize()
 	};
-	//opaquePsoDesc.GS =
-	//{
-	//	reinterpret_cast<BYTE*>(mShaders["standardGS"]->GetBufferPointer()),
-	//	mShaders["standardGS"]->GetBufferSize()
-	//};
+	opaquePsoDesc.GS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["standardGS"]->GetBufferPointer()),
+		mShaders["standardGS"]->GetBufferSize()
+	};
 	opaquePsoDesc.PS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["opaquePS"]->GetBufferPointer()),
@@ -401,7 +401,7 @@ void d3dApp::BuildPSOs()
 	opaquePsoDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
 	opaquePsoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
-	opaquePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	opaquePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;//D3D12_CULL_MODE_BACK;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 
 	//

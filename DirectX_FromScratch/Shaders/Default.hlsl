@@ -91,6 +91,46 @@ struct GeoOut
 };
 
 
+void Subdivide(inout GeoOut inVerts[3], inout GeoOut outVerts[6])
+{
+
+	//       v1
+	//       *
+	//      / \
+	//     /   \
+	//  m0*-----*m1
+	//   / \   / \
+	//  /   \ /   \
+	// *-----*-----*
+	// v0    m2     v2
+    
+    GeoOut m[3];
+    
+    m[0].PosW = 0.5f * (inVerts[0].PosW + inVerts[1].PosW);
+    m[1].PosW = 0.5f * (inVerts[1].PosW + inVerts[2].PosW);
+    m[2].PosW = 0.5f * (inVerts[2].PosW + inVerts[0].PosW);
+    
+    m[0].PosW = normalize(m[0].PosW);
+    m[1].PosW = normalize(m[1].PosW);
+    m[2].PosW = normalize(m[2].PosW);
+    
+    m[0].NormalW = m[0].PosW;
+    m[1].NormalW = m[1].PosW;
+    m[2].NormalW = m[2].PosW;
+    
+    outVerts[0] = inVerts[0];
+    outVerts[1] = m[0];
+    outVerts[2] = m[2];
+    outVerts[3] = m[1];
+    outVerts[4] = inVerts[2];
+    outVerts[5] = inVerts[1];
+    
+    
+    inVerts[1] = m[0];
+    inVerts[2] = m[2];
+
+}
+
 VertexOut VS(VertexIn vin)
 {
 	VertexOut vout = (VertexOut)0.0f;
@@ -106,6 +146,58 @@ VertexOut VS(VertexIn vin)
     vout.PosH = mul(posW, gViewProj);
     
     return vout;
+}
+
+[maxvertexcount(36)]
+void GS(triangle VertexOut gin[3],
+        uint primID : SV_PrimitiveID,
+        inout TriangleStream<GeoOut> triStream)
+{
+    float3 meanVec = float3(0.0f, 0.0f, 0.0f);
+    for (int i = 0; i < 3; i++)
+    {
+        meanVec += gin[i].PosW;
+    }
+    meanVec /= 3.0f;
+       
+    float d = distance(gEyePosW, meanVec);
+    
+    int iters = d < 7 ? 2 : d >= 14 ? 0 : 1;
+    
+    GeoOut vIn[3];
+    vIn[0].PosW = gin[0].PosW;
+    vIn[0].NormalW = gin[0].NormalW;
+    vIn[1].PosW = gin[1].PosW;
+    vIn[1].NormalW = gin[1].NormalW;
+    vIn[2].PosW = gin[2].PosW;
+    vIn[2].NormalW = gin[2].NormalW;
+
+    [unroll]
+    for (int j = 0; j < iters; j++)
+    {
+        GeoOut vOut[6];
+        Subdivide(vIn, vOut);
+    	[unroll]
+        for (int i = 0; i < 6; i++)
+        {
+            vOut[i].PosH = mul(float4(vOut[i].PosW, 1.0f), gViewProj);
+            vOut[i].Color = float4(vOut[i].PosW, 1.0f);
+            triStream.Append(vOut[i]);
+            if (i % 3 == 0) triStream.RestartStrip();
+        }
+    }
+    
+    if (iters == 0)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            vIn[i].PosH = mul(float4(vIn[i].PosW, 1.0f), gViewProj);
+            vIn[i].Color = float4(vIn[i].PosW, 1.0f);
+            triStream.Append(vIn[i]);
+   //         if (i % 3 == 0)
+     //           triStream.RestartStrip();
+        }
+    }
 }
 
 
