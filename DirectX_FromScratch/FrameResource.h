@@ -36,7 +36,8 @@ struct PassConstants // constant buffer data for each frame
     DirectX::XMFLOAT4 FogColor = { 0.7f, 0.7f, 0.7f, 1.0f };
     float gFogStart = 50.0f;
     float gFogRange = 150.0f;
-    DirectX::XMFLOAT2 cbPerObjectPad2;
+    float gRadius = 1.0f;
+    float gIncr = 1.0f;
 
     // Indices [0, NUM_DIR_LIGHTS) are directional lights;
     // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;

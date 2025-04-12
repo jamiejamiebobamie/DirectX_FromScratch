@@ -146,6 +146,8 @@ private:
 	POINT mLastMousePos;
 
 	float mCircleRadius = 1.0f;
+	float mCircleIncr = 1.0f;
+
 
 protected:
 

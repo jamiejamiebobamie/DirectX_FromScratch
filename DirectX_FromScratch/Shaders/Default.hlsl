@@ -49,7 +49,10 @@ cbuffer cbPass : register(b1)
 	float4 gFogColor;
 	float gFogStart;
 	float gFogRange;
-	float2 cbPerObjectPad2;
+	//float2 cbPerObjectPad2;
+    
+    float gRadius;
+    float gIncr;
 
     // Indices [0, NUM_DIR_LIGHTS) are directional lights;
     // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
@@ -77,6 +80,7 @@ struct VertexOut
 	float4 PosH    : SV_POSITION;
     float3 PosW    : POSITION;
     float3 NormalW : NORMAL;
+    bool isOrig : BOOL;
 };
 
 struct GeoOut
@@ -84,7 +88,7 @@ struct GeoOut
     float4 PosH : SV_POSITION;
     float3 PosW : POSITION;
     float3 NormalW : NORMAL;
-    uint PrimID : SV_PrimitiveID;
+    float4 Color : COLOR;
 };
 
 VertexOut VS(VertexIn vin)
@@ -100,41 +104,55 @@ VertexOut VS(VertexIn vin)
 
     // Transform to homogeneous clip space.
     vout.PosH = mul(posW, gViewProj);
-
+    
     return vout;
 }
 
-[maxvertexcount(2)]
+[maxvertexcount(13)]
 void GS(line VertexOut gin[2],
         uint primID : SV_PrimitiveID,
-        inout LineStream<GeoOut> lineStream)
+        inout TriangleStream<GeoOut> triStream)
 {
 
     float3 up = float3(0.0f, 1.0f, 0.0f);
     float3 down = up * -1.0f;
 
-    float4 v[2];
-    v[0] = float4(gin[0].PosW + up, 1.0f);
-    v[1] = float4(gin[0].PosW + down, 1.0f);
-	
+    float4 v[13];
+    v[0] = float4(gin[0].PosW, 1.0f);
+    v[1] = float4(gin[0].PosW + up, 1.0f);
+    v[2] = float4(gin[1].PosW + up, 1.0f);
+    v[3] = v[0];
+    v[4] = v[2];
+    v[5] = float4(gin[1].PosW, 1.0f);
+    v[6] = v[0];
+    //float4(gin[0].PosW + down, 1.0f);
+    v[7] = v[5];
+    v[8] = float4(gin[1].PosW + down, 1.0f);
+    //v[5];
+    v[9] = v[0];
+    v[10] = v[8];
+    v[11] = float4(gin[0].PosW + down, 1.0f);
+    v[12] = v[0];
 	
     GeoOut gout;
 	[unroll]
-    for (int i = 0; i < 2; ++i)
+    for (int i = 0; i < 13; ++i)
     {
         gout.PosH = mul(v[i], gViewProj);
         gout.PosW = v[i].xyz;
-        gout.NormalW = normalize(i == 0 ? v[i].xyz - up : v[i].xyz - down);
-        gout.PrimID = primID;
+        gout.NormalW = normalize(v[i].xyz - float3(0.0f, v[i].y, 0.0f));
+        gout.Color = float4(v[i].xyz, 1.0f);
 		
-        lineStream.Append(gout);
+        triStream.Append(gout);
+        if (i % 3 == 0) triStream.RestartStrip();
     }
-    //lineStream.RestartStrip();
+    
 }
 
-float4 PS(VertexOut pin) : SV_Target
+float4 PS(GeoOut pin) : SV_Target
 {
-    float4 diffuseAlbedo = gDiffuseAlbedo;
+    float4 diffuseAlbedo = pin.Color;
+    //gDiffuseAlbedo;
 
     // Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
