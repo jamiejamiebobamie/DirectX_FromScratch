@@ -92,10 +92,10 @@ bool d3dApp::Initialize()
 	BuildRootSignature();
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
-	BuildSkull();
 	BuildLandGeometry();
 	BuildWavesGeometry();
 	BuildBoxGeometry();
+	BuildTreeSpritesGeometry();
 	BuildMaterials();
 	BuildRenderItems();
 	BuildFrameResources();
@@ -302,17 +302,17 @@ void d3dApp::LoadTextures()
 		mCommandList.Get(), fenceTex->Filename.c_str(),
 		fenceTex->Resource, fenceTex->UploadHeap));
 
-	auto skullTex = std::make_unique<Texture>();
-	skullTex->Name = "skullTex";
-	skullTex->Filename = L"Textures/white1x1.dds";
+	auto treeArrayTex = std::make_unique<Texture>();
+	treeArrayTex->Name = "treeArrayTex";
+	treeArrayTex->Filename = L"Textures/treeArray2.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), skullTex->Filename.c_str(),
-		skullTex->Resource, skullTex->UploadHeap));
+		mCommandList.Get(), treeArrayTex->Filename.c_str(),
+		treeArrayTex->Resource, treeArrayTex->UploadHeap));
 
 	mTextures[grassTex->Name] = std::move(grassTex);
 	mTextures[waterTex->Name] = std::move(waterTex);
 	mTextures[fenceTex->Name] = std::move(fenceTex);
-	mTextures[skullTex->Name] = std::move(skullTex);
+	mTextures[treeArrayTex->Name] = std::move(treeArrayTex);
 }
 
 void d3dApp::BuildRootSignature()
@@ -374,7 +374,7 @@ void d3dApp::BuildDescriptorHeaps()
 	auto grassTex = mTextures["grassTex"]->Resource;
 	auto waterTex = mTextures["waterTex"]->Resource;
 	auto fenceTex = mTextures["fenceTex"]->Resource;
-	auto skullTex = mTextures["skullTex"]->Resource;
+	auto treeArrayTex = mTextures["treeArrayTex"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -399,8 +399,14 @@ void d3dApp::BuildDescriptorHeaps()
 	// next descriptor
 	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
 
-	srvDesc.Format = skullTex->GetDesc().Format;
-	md3dDevice->CreateShaderResourceView(skullTex.Get(), &srvDesc, hDescriptor);
+	auto desc = treeArrayTex->GetDesc();
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+	srvDesc.Format = treeArrayTex->GetDesc().Format;
+	srvDesc.Texture2DArray.MostDetailedMip = 0;
+	srvDesc.Texture2DArray.MipLevels = -1;
+	srvDesc.Texture2DArray.FirstArraySlice = 0;
+	srvDesc.Texture2DArray.ArraySize = treeArrayTex->GetDesc().DepthOrArraySize;
+	md3dDevice->CreateShaderResourceView(treeArrayTex.Get(), &srvDesc, hDescriptor);
 }
 
 void d3dApp::BuildShadersAndInputLayout()
@@ -422,122 +428,122 @@ void d3dApp::BuildShadersAndInputLayout()
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", defines, "PS", "ps_5_0");
 	mShaders["alphaTestedPS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", alphaTestDefines, "PS", "ps_5_0");
 
-	mInputLayout =
+	mShaders["treeSpriteVS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "VS", "vs_5_0");
+	mShaders["treeSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "GS", "gs_5_0");
+	mShaders["treeSpritePS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");
+
+	mStdInputLayout =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
-}
 
-void d3dApp::BuildSkull()
-{
-	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData skull = geoGen.CreateSkull();
-
-	//
-	// Extract the vertex elements we are interested and apply the height function to
-	// each vertex.  In addition, color the vertices based on their height so we have
-	// sandy looking beaches, grassy low hills, and snow mountain peaks.
-	//
-
-	std::vector<Vertex> vertices(skull.Vertices.size());
-	for (size_t i = 0; i < skull.Vertices.size(); ++i)
+	mTreeSpriteInputLayout =
 	{
-		vertices[i].Pos = skull.Vertices[i].Position;
-		vertices[i].Normal = skull.Vertices[i].Normal;
-		vertices[i].TexC = skull.Vertices[i].TexC;
-	}
-
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
-
-	std::vector<std::uint16_t> indices = skull.GetIndices16();
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
-
-	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "skullGeo";
-
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
-	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
-
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
-
-	geo->VertexByteStride = sizeof(Vertex);
-	geo->VertexBufferByteSize = vbByteSize;
-	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
-	geo->IndexBufferByteSize = ibByteSize;
-
-	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)indices.size();
-	submesh.StartIndexLocation = 0;
-	submesh.BaseVertexLocation = 0;
-
-	geo->DrawArgs["skull"] = submesh;
-
-	mGeometries["skullGeo"] = std::move(geo);
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "SLOPE", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	};
 }
 
 void d3dApp::BuildLandGeometry()
 {
 	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData grid = geoGen.CreateGrid(400.0f, 400.0f, 20, 20);
+	
+	if (mIsEdited) {
+		GeometryGenerator::MeshData grid = geoGen.CreateGrid(400.0f, 400.0f, 20, 20);
+		std::vector<Vertex> vertices(grid.Vertices.size());
+		for (size_t i = 0; i < grid.Vertices.size(); ++i)
+		{
+			auto& p = grid.Vertices[i].Position;
+			vertices[i].Pos = p;
+			vertices[i].Pos.y = GetHillsHeight(p.x, p.z);
+			vertices[i].Normal = GetHillsNormal(p.x, p.z);
+			vertices[i].TexC = grid.Vertices[i].TexC;
+		}
 
-	//
-	// Extract the vertex elements we are interested and apply the height function to
-	// each vertex.  In addition, color the vertices based on their height so we have
-	// sandy looking beaches, grassy low hills, and snow mountain peaks.
-	//
+		const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 
-	std::vector<Vertex> vertices(grid.Vertices.size());
-	for (size_t i = 0; i < grid.Vertices.size(); ++i)
-	{
-		auto& p = grid.Vertices[i].Position;
-		vertices[i].Pos = p;
-		vertices[i].Pos.y = GetHillsHeight(p.x, p.z);
-		vertices[i].Normal = GetHillsNormal(p.x, p.z);
-		vertices[i].TexC = grid.Vertices[i].TexC;
+		std::vector<std::uint16_t> indices = grid.GetIndices16();
+		const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+		auto geo = std::make_unique<MeshGeometry>();
+		geo->Name = "landGeo";
+
+		ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+		CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+		ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+		CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+		geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+			mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+		geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+			mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+		geo->VertexByteStride = sizeof(Vertex);
+		geo->VertexBufferByteSize = vbByteSize;
+		geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+		geo->IndexBufferByteSize = ibByteSize;
+
+		SubmeshGeometry submesh;
+		submesh.IndexCount = (UINT)indices.size();
+		submesh.StartIndexLocation = 0;
+		submesh.BaseVertexLocation = 0;
+
+		geo->DrawArgs["grid"] = submesh;
+
+		mGeometries["landGeo"] = std::move(geo);
 	}
+	else {
+		//400.0f, 400.0f, 20, 20
+		GeometryGenerator::MeshData grid = geoGen.CreateGrid(400.0f, 400.0f, 50, 50);
+		std::vector<Vertex> vertices(grid.Vertices.size());
+		for (size_t i = 0; i < grid.Vertices.size(); ++i)
+		{
+			auto& p = grid.Vertices[i].Position;
+			vertices[i].Pos = p;
+			vertices[i].Pos.y = GetHillsHeight(p.x, p.z);
+			vertices[i].Normal = GetHillsNormal(p.x, p.z);
+			vertices[i].TexC = grid.Vertices[i].TexC;
+		}
 
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+		const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 
-	std::vector<std::uint16_t> indices = grid.GetIndices16();
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+		std::vector<std::uint16_t> indices = grid.GetIndices16();
+		const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
-	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "landGeo";
+		auto geo = std::make_unique<MeshGeometry>();
+		geo->Name = "landGeo";
 
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
-	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+		ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+		CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
 
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+		ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+		CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+		geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+			mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
 
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+		geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+			mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
-	geo->VertexByteStride = sizeof(Vertex);
-	geo->VertexBufferByteSize = vbByteSize;
-	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
-	geo->IndexBufferByteSize = ibByteSize;
+		geo->VertexByteStride = sizeof(Vertex);
+		geo->VertexBufferByteSize = vbByteSize;
+		geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+		geo->IndexBufferByteSize = ibByteSize;
 
-	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)indices.size();
-	submesh.StartIndexLocation = 0;
-	submesh.BaseVertexLocation = 0;
+		SubmeshGeometry submesh;
+		submesh.IndexCount = (UINT)indices.size();
+		submesh.StartIndexLocation = 0;
+		submesh.BaseVertexLocation = 0;
 
-	geo->DrawArgs["grid"] = submesh;
+		geo->DrawArgs["grid"] = submesh;
 
-	mGeometries["landGeo"] = std::move(geo);
+		mGeometries["landGeo"] = std::move(geo);
+	}
 }
 
 void d3dApp::BuildWavesGeometry()
@@ -645,6 +651,67 @@ void d3dApp::BuildBoxGeometry()
 	mGeometries["boxGeo"] = std::move(geo);
 }
 
+void d3dApp::BuildTreeSpritesGeometry()
+{
+	static const int treeCount = 450;
+	float treeArea = 150.0f;
+	std::array<TreeSpriteVertex, treeCount> vertices;
+	for (UINT i = 0; i < treeCount; ++i)
+	{
+		float x = MathHelper::RandF(-treeArea, treeArea);
+		float z = MathHelper::RandF(-treeArea, treeArea);
+		float y = GetHillsHeight(x, z);
+
+		float h = MathHelper::RandF(25.0f, 55.0f);
+		float w = MathHelper::Max(MathHelper::RandF(10.0f, 25.0f), h / 2.0f);
+
+		y += (h / 2.0f) - (h / 10.0f);
+
+		vertices[i].Pos = XMFLOAT3(x, y, z);
+		vertices[i].Size = XMFLOAT2(w, h);
+		vertices[i].Slope = GetHillsSlope(x, z);
+	}
+
+	std::array<std::uint16_t, treeCount> indices;
+
+	for (uint16_t i = 0; i < treeCount; ++i)
+	{
+		indices[i] = i;
+	}
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(TreeSpriteVertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "treeSpritesGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(TreeSpriteVertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
+
+	geo->DrawArgs["points"] = submesh;
+
+	mGeometries["treeSpritesGeo"] = std::move(geo);
+}
+
 void d3dApp::BuildPSOs()
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
@@ -653,7 +720,7 @@ void d3dApp::BuildPSOs()
 	// PSO for opaque objects.
 	//
 	ZeroMemory(&opaquePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-	opaquePsoDesc.InputLayout = { mInputLayout.data(), (UINT)mInputLayout.size() };
+	opaquePsoDesc.InputLayout = { mStdInputLayout.data(), (UINT)mStdInputLayout.size() };
 	opaquePsoDesc.pRootSignature = mRootSignature.Get();
 	opaquePsoDesc.VS =
 	{
@@ -712,6 +779,31 @@ void d3dApp::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&alphaTestedPsoDesc, IID_PPV_ARGS(&mPSOs["alphaTested"])));
 
 	//
+	// PSO for tree sprites
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC treeSpritePsoDesc = opaquePsoDesc;
+	treeSpritePsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["treeSpriteVS"]->GetBufferPointer()),
+		mShaders["treeSpriteVS"]->GetBufferSize()
+	};
+	treeSpritePsoDesc.GS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["treeSpriteGS"]->GetBufferPointer()),
+		mShaders["treeSpriteGS"]->GetBufferSize()
+	};
+	treeSpritePsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["treeSpritePS"]->GetBufferPointer()),
+		mShaders["treeSpritePS"]->GetBufferSize()
+	};
+	treeSpritePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+	treeSpritePsoDesc.InputLayout = { mTreeSpriteInputLayout.data(), (UINT)mTreeSpriteInputLayout.size() };
+	//treeSpritePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	treeSpritePsoDesc.BlendState.AlphaToCoverageEnable = true;
+
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&treeSpritePsoDesc, IID_PPV_ARGS(&mPSOs["treeSprites"])));
+	//
 	// PSO for opaque wireframe objects.
 	//
 
@@ -735,7 +827,7 @@ void d3dApp::BuildMaterials()
 	grass->Name = "grass";
 	grass->MatCBIndex = 0;
 	grass->DiffuseSrvHeapIndex = 0;
-	grass->DiffuseAlbedo = XMFLOAT4(0.7f, 0.5f, 0.6f, 1.0f);
+	grass->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
 	grass->Roughness = 0.125f;
 
@@ -745,39 +837,37 @@ void d3dApp::BuildMaterials()
 	water->Name = "water";
 	water->MatCBIndex = 1;
 	water->DiffuseSrvHeapIndex = 1;
-	water->DiffuseAlbedo = XMFLOAT4(0.3f, 0.4f, 0.5f, 0.5f);
+	water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.5f);
 	water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
-	water->Roughness = 0.9f;
+	water->Roughness = 0.0f;
 
 	auto wirefence = std::make_unique<Material>();
 	wirefence->Name = "wirefence";
 	wirefence->MatCBIndex = 2;
 	wirefence->DiffuseSrvHeapIndex = 2;
 	wirefence->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	wirefence->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	wirefence->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 	wirefence->Roughness = 0.25f;
 
-	auto skull = std::make_unique<Material>();
-	skull->Name = "skull";
-	skull->MatCBIndex = 3;
-	skull->DiffuseSrvHeapIndex = 3;
-	skull->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	skull->FresnelR0 = XMFLOAT3(1.46131f, 1.4613f, 1.4613f);
-	skull->Roughness = 0.9f;
+	auto treeSprites = std::make_unique<Material>();
+	treeSprites->Name = "treeSprites";
+	treeSprites->MatCBIndex = 3;
+	treeSprites->DiffuseSrvHeapIndex = 3;
+	treeSprites->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	treeSprites->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+	treeSprites->Roughness = 0.125f;
 
 	mMaterials["grass"] = std::move(grass);
 	mMaterials["water"] = std::move(water);
 	mMaterials["wirefence"] = std::move(wirefence);
-	mMaterials["skull"] = std::move(skull);
+	mMaterials["treeSprites"] = std::move(treeSprites);
 }
 
 void d3dApp::BuildRenderItems()
 {
 	auto wavesRitem = std::make_unique<RenderItem>();
-	//wavesRitem->World = MathHelper::Identity4x4();
-	
-	XMStoreFloat4x4(&wavesRitem->World, XMMatrixScaling(3.0f, 1.0f, 3.0f) * XMMatrixTranslation(0.0f, 7.0f, 0.0f) * XMMatrixRotationY(MathHelper::Pi / 2.0f - MathHelper::Pi / 3.0f));
-	XMStoreFloat4x4(&wavesRitem->TexTransform, XMMatrixScaling(15.0f, 15.0f, 1.0f));
+	wavesRitem->World = MathHelper::Identity4x4();
+	XMStoreFloat4x4(&wavesRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
 	wavesRitem->ObjCBIndex = 0;
 	wavesRitem->Mat = mMaterials["water"].get();
 	wavesRitem->Geo = mGeometries["waterGeo"].get();
@@ -791,8 +881,7 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Transparent].push_back(wavesRitem.get());
 
 	auto gridRitem = std::make_unique<RenderItem>();
-	//gridRitem->World = MathHelper::Identity4x4();
-	XMStoreFloat4x4(&gridRitem->World, XMMatrixTranslation(0.0f, -7.0f, 0.0f));
+	gridRitem->World = MathHelper::Identity4x4();
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
 	gridRitem->ObjCBIndex = 1;
 	gridRitem->Mat = mMaterials["grass"].get();
@@ -804,23 +893,9 @@ void d3dApp::BuildRenderItems()
 
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
 
-	auto skullRitem = std::make_unique<RenderItem>();
-	//gridRitem->World = MathHelper::Identity4x4();
-	XMStoreFloat4x4(&skullRitem->World, XMMatrixTranslation(0.0f, -7.0f, 0.0f));
-	XMStoreFloat4x4(&skullRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
-	skullRitem->ObjCBIndex = 2;
-	skullRitem->Mat = mMaterials["skull"].get();
-	skullRitem->Geo = mGeometries["skullGeo"].get();
-	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
-	skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
-	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
-
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(skullRitem.get());
-
 	auto boxRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixTranslation(3.0f, -3.0f, -9.0f));
-	boxRitem->ObjCBIndex = 3;
+	XMStoreFloat4x4(&boxRitem->World, XMMatrixTranslation(3.0f, 2.0f, -9.0f));
+	boxRitem->ObjCBIndex = 2;
 	boxRitem->Mat = mMaterials["wirefence"].get();
 	boxRitem->Geo = mGeometries["boxGeo"].get();
 	boxRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -830,10 +905,22 @@ void d3dApp::BuildRenderItems()
 
 	mRitemLayer[(int)RenderLayer::AlphaTested].push_back(boxRitem.get());
 
+	auto treeSpritesRitem = std::make_unique<RenderItem>();
+	treeSpritesRitem->World = MathHelper::Identity4x4();
+	treeSpritesRitem->ObjCBIndex = 3;
+	treeSpritesRitem->Mat = mMaterials["treeSprites"].get();
+	treeSpritesRitem->Geo = mGeometries["treeSpritesGeo"].get();
+	treeSpritesRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
+	treeSpritesRitem->IndexCount = treeSpritesRitem->Geo->DrawArgs["points"].IndexCount;
+	treeSpritesRitem->StartIndexLocation = treeSpritesRitem->Geo->DrawArgs["points"].StartIndexLocation;
+	treeSpritesRitem->BaseVertexLocation = treeSpritesRitem->Geo->DrawArgs["points"].BaseVertexLocation;
+
+	mRitemLayer[(int)RenderLayer::AlphaTestedTreeSprites].push_back(treeSpritesRitem.get());
+
 	mAllRitems.push_back(std::move(wavesRitem));
 	mAllRitems.push_back(std::move(gridRitem));
-	mAllRitems.push_back(std::move(skullRitem));
 	mAllRitems.push_back(std::move(boxRitem));
+	mAllRitems.push_back(std::move(treeSpritesRitem));
 }
 
 void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -946,6 +1033,31 @@ XMFLOAT3 d3dApp::GetHillsNormal(float x, float z)const
 	XMStoreFloat3(&n, unitNormal);
 
 	return n;
+}
+
+XMFLOAT3 d3dApp::GetHillsSlope(float x, float z)const
+{
+
+	XMFLOAT3 tangent(1.0f,
+		0.03f * z * cosf(0.1f * x) - 0.3f * cosf(0.1f * z) > 0.0f // ensure it is positive relative to y-axis
+		? 0.03f * z * cosf(0.1f * x) - 0.3f * cosf(0.1f * z)
+		: -0.03f * z * cosf(0.1f * x) - 0.3f * cosf(0.1f * z)
+		, 0.0f);
+	XMFLOAT3 cotangent(0.0f,
+		0.3f * sinf(0.1f * x) + 0.03f * x * sinf(0.1f * z) > 0.0f // ensure it is positive relative to y-axis
+		? 0.3f * sinf(0.1f * x) + 0.03f * x * sinf(0.1f * z)
+		: -0.3f * sinf(0.1f * x) + 0.03f * x * sinf(0.1f * z),
+		1.0f);
+	XMFLOAT3 up(0.0f, 1.0f, 0.0f);
+
+	// compare with "up" vector
+	XMVECTOR tanProj = XMVector3Dot(XMVector3Normalize(XMLoadFloat3(&tangent)), XMLoadFloat3(&up)) * XMVector3Normalize(XMLoadFloat3(&tangent));
+	XMVECTOR cotanProj = XMVector3Dot(XMVector3Normalize(XMLoadFloat3(&cotangent)), XMLoadFloat3(&up)) * XMVector3Normalize(XMLoadFloat3(&cotangent));
+
+	XMFLOAT3 slope;
+	XMStoreFloat3(&slope, XMVector3Normalize(tanProj + cotanProj));
+
+	return slope;
 }
 
 void d3dApp::OnResize()
@@ -1147,6 +1259,9 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->SetPipelineState(mPSOs["alphaTested"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTested]);
 
+	mCommandList->SetPipelineState(mPSOs["treeSprites"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTestedTreeSprites]);
+
 	mCommandList->SetPipelineState(mPSOs["transparent"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Transparent]);
 
@@ -1244,11 +1359,8 @@ void d3dApp::AnimateMaterials(const GameTimer& gt)
 	float& tu = waterMat->MatTransform(3, 0);
 	float& tv = waterMat->MatTransform(3, 1);
 
-	//tu += 0.1f * gt.DeltaTime();
-	//tv += 0.02f * gt.DeltaTime();
-
-	tu += 0.5f * gt.DeltaTime();
-	tv += 0.1f * gt.DeltaTime();
+	tu += 0.1f * gt.DeltaTime();
+	tv += 0.02f * gt.DeltaTime();
 
 	if (tu >= 1.0f)
 		tu -= 1.0f;
@@ -1339,18 +1451,13 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.FarZ = 1000.0f;
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
-	mMainPassCB.AmbientLight = { 0.1f, 0.1f, 0.1f, 1.0f };
-	XMVECTOR lightDir = XMVector3Normalize(XMVectorSet(100.0f, -1.0f, 5.0f, 0.0f));
-	XMFLOAT3 _lightDir;
-	XMStoreFloat3(&_lightDir, lightDir);
-	mMainPassCB.Lights[0].Direction = _lightDir;
-	mMainPassCB.Lights[0].Strength = { 0.7f, 0.5f, 0.3f };
-	//mMainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
-	//mMainPassCB.Lights[0].Strength = { 0.9f, 0.9f, 0.8f };
-	//mMainPassCB.Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
-	//mMainPassCB.Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
-	//mMainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
-	//mMainPassCB.Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
+	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
+	mMainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
+	mMainPassCB.Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
+	mMainPassCB.Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
+	mMainPassCB.Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
+	mMainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
+	mMainPassCB.Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
@@ -1360,14 +1467,14 @@ void d3dApp::UpdateWaves(const GameTimer& gt)
 {
 	// Every quarter second, generate a random wave.
 	static float t_base = 0.0f;
-	if ((mTimer.TotalTime() - t_base) >= 0.0025f)
+	if ((mTimer.TotalTime() - t_base) >= 0.25f)
 	{
-		t_base += 0.0025f;
+		t_base += 0.25f;
 
 		int i = MathHelper::Rand(4, mWaves->RowCount() - 5);
 		int j = MathHelper::Rand(4, mWaves->ColumnCount() - 5);
 
-		float r = MathHelper::RandF(0.2f, 1.5f);
+		float r = MathHelper::RandF(0.2f, 0.5f);
 
 		mWaves->Disturb(i, j, r);
 	}

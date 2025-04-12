@@ -1,7 +1,5 @@
 //***************************************************************************************
-// Default.hlsl by Frank Luna (C) 2015 All Rights Reserved.
-//
-// Default shader, currently supports lighting.
+// TreeSprite.hlsl by Frank Luna (C) 2015 All Rights Reserved.
 //***************************************************************************************
 
 // Defaults for number of lights.
@@ -20,7 +18,7 @@
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
-Texture2D    gDiffuseMap : register(t0);
+Texture2DArray gTreeMapArray : register(t0);
 
 
 SamplerState gsamPointWrap        : register(s0);
@@ -75,46 +73,116 @@ cbuffer cbMaterial : register(b2)
     float    gRoughness;
 	float4x4 gMatTransform;
 };
-
+ 
 struct VertexIn
 {
-	float3 PosL    : POSITION;
-    float3 NormalL : NORMAL;
-	float2 TexC    : TEXCOORD;
+	float3 PosW  : POSITION;
+	float2 SizeW : SIZE;
+    float3 SlopeW : SLOPE;
 };
 
 struct VertexOut
 {
+	float3 CenterW : POSITION;
+	float2 SizeW   : SIZE;
+    float3 SlopeW : SLOPE;
+};
+
+struct GeoOut
+{
 	float4 PosH    : SV_POSITION;
     float3 PosW    : POSITION;
     float3 NormalW : NORMAL;
-	float2 TexC    : TEXCOORD;
+    float2 TexC    : TEXCOORD;
+    uint   PrimID  : SV_PrimitiveID;
+    float3 SlopeW : SLOPE;
 };
 
 VertexOut VS(VertexIn vin)
 {
-	VertexOut vout = (VertexOut)0.0f;
+	VertexOut vout;
+
+	// Just pass data over to geometry shader.
+    vout.CenterW = vin.PosW;    
+	vout.SizeW   = vin.SizeW;
+    vout.SlopeW = vin.SlopeW;
+
+	return vout;
+}
+ 
+ // We expand each point into a quad (4 vertices), so the maximum number of vertices
+ // we output per geometry shader invocation is 4.
+[maxvertexcount(4)]
+void GS(point VertexOut gin[1], 
+        uint primID : SV_PrimitiveID, 
+        inout TriangleStream<GeoOut> triStream)
+{	
+	//
+	// Compute the local coordinate system of the sprite relative to the world
+	// space such that the billboard is aligned with the y-axis and faces the eye.
+	//
+
+	float3 up = float3(0.0f, 1.0f, 0.0f);
+	float3 look = gEyePosW - gin[0].CenterW;
+	look.y = 0.0f; // y-axis aligned, so project to xz-plane
+	look = normalize(look);
+	float3 right = cross(up, look);
+
+	//
+	// Compute triangle strip vertices (quad) in world space.
+	//
+	float halfWidth  = 0.5f*gin[0].SizeW.x;
+	float halfHeight = 0.5f*gin[0].SizeW.y;
 	
-    // Transform to world space.
-    float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
-    vout.PosW = posW.xyz;
-
-    // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
-    vout.NormalW = mul(vin.NormalL, (float3x3)gWorld);
-
-    // Transform to homogeneous clip space.
-    vout.PosH = mul(posW, gViewProj);
+	float4 v[4];
+	v[0] = float4(gin[0].CenterW + halfWidth*right - halfHeight*up, 1.0f);
+	v[1] = float4(gin[0].CenterW + halfWidth*right + halfHeight*up, 1.0f);
+	v[2] = float4(gin[0].CenterW - halfWidth*right - halfHeight*up, 1.0f);
+	v[3] = float4(gin[0].CenterW - halfWidth*right + halfHeight*up, 1.0f);
 	
-	// Output vertex attributes for interpolation across triangle.
-	float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
-	vout.TexC = mul(texC, gMatTransform).xy;
-
-    return vout;
+	
+    float periodMod = 1.5f;
+    float variance = 100.0f;
+    float4 dir = float4(1.0f, 0.1f, 0.2f, 0.0f);
+	
+    v[1] = v[1] + cos((gTotalTime + ((gin[0].CenterW.x + gin[0].CenterW.z) * variance)) * periodMod) * dir;
+    v[3] = v[3] + cos((gTotalTime + ((gin[0].CenterW.x + gin[0].CenterW.z) * variance)) * periodMod) * dir;
+	
+	//
+	// Transform quad vertices to world space and output 
+	// them as a triangle strip.
+	//
+	
+	float2 texC[4] = 
+	{
+		float2(0.0f, 1.0f),
+		float2(0.0f, 0.0f),
+		float2(1.0f, 1.0f),
+		float2(1.0f, 0.0f)
+	};
+	
+	GeoOut gout;
+	[unroll]
+	for(int i = 0; i < 4; ++i)
+	{
+		gout.PosH     = mul(v[i], gViewProj);
+		gout.PosW     = v[i].xyz;
+		gout.NormalW  = look;
+		gout.TexC     = texC[i];
+		gout.PrimID   = primID;
+        gout.SlopeW  = gin[0].SlopeW;
+		
+        if (v[i].y > 0.0f // don't put trees in water
+			&& dot(gin[0].SlopeW, float3(0.0f, 1.0f, 0.0f)) < 0.83f // don't put trees on slopes
+			)
+            triStream.Append(gout);
+    }
 }
 
-float4 PS(VertexOut pin) : SV_Target
+float4 PS(GeoOut pin) : SV_Target
 {
-    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
+	float3 uvw = float3(pin.TexC, pin.PrimID%3);
+    float4 diffuseAlbedo = gTreeMapArray.Sample(gsamAnisotropicWrap, uvw) * gDiffuseAlbedo;
 	
 #ifdef ALPHA_TEST
 	// Discard pixel if texture alpha < 0.1.  We do this test as soon 
@@ -139,8 +207,10 @@ float4 PS(VertexOut pin) : SV_Target
     float3 shadowFactor = 1.0f;
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         pin.NormalW, toEyeW, shadowFactor);
-
-    float4 litColor = ambient + directLight;
+	
+    float4 litColor = dot(pin.SlopeW, float3(0.0f, 1.0f, 0.0f)) > 0.83f
+						? float4(1.0f,1.0f,1.0f,1.0f) // color trees white that are on a slope
+						: ambient + directLight;
 
 #ifdef FOG
 	float fogAmount = saturate((distToEye - gFogStart) / gFogRange);

@@ -28,10 +28,18 @@ enum class RenderLayer : int
 	Opaque = 0,
 	Transparent,
 	AlphaTested,
+	AlphaTestedTreeSprites,
 	Count
 };
 
 extern const int gNumFrameResources;
+
+struct TreeSpriteVertex
+{
+	XMFLOAT3 Pos;
+	XMFLOAT2 Size;
+	XMFLOAT3 Slope;
+};
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
@@ -107,10 +115,10 @@ private:
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildSkull();
 	void BuildLandGeometry();
 	void BuildWavesGeometry();
 	void BuildBoxGeometry();
+	void BuildTreeSpritesGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
@@ -121,6 +129,7 @@ private:
 
 	float GetHillsHeight(float x, float z)const;
 	XMFLOAT3 GetHillsNormal(float x, float z)const;
+	XMFLOAT3 GetHillsSlope(float x, float z)const;
 
 private:
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
@@ -139,14 +148,13 @@ private:
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
 	std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
 
-	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
-
-	// List of all the render items.
-	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> mStdInputLayout;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> mTreeSpriteInputLayout;
 
 	RenderItem* mWavesRitem = nullptr;
 
-	// Render items divided by PSO.
+	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
+
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
 	std::unique_ptr<Waves> mWaves;
@@ -244,6 +252,8 @@ protected:
 	DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	int mClientWidth = 800;
 	int mClientHeight = 600;
+
+	bool mIsEdited = false;
 
 };
 
