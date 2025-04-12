@@ -101,7 +101,7 @@ private:
 
 	void BuildRootSignature();
 	void BuildShadersAndInputLayout();
-	void BuildCircleGeometry();
+	void BuildIcosahedronGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();

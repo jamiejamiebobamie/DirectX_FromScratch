@@ -88,7 +88,7 @@ bool d3dApp::Initialize()
 
 	BuildRootSignature();
 	BuildShadersAndInputLayout();
-	BuildCircleGeometry();
+	BuildIcosahedronGeometry();
 	BuildMaterials();
 	BuildRenderItems();
 	BuildFrameResources();
@@ -308,7 +308,7 @@ void d3dApp::BuildRootSignature()
 void d3dApp::BuildShadersAndInputLayout()
 {
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_0");
-	mShaders["standardGS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "GS", "gs_5_0");
+	//mShaders["standardGS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "GS", "gs_5_0");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "PS", "ps_5_0");
 
 	mStdInputLayout =
@@ -318,40 +318,26 @@ void d3dApp::BuildShadersAndInputLayout()
 	};
 }
 
-void d3dApp::BuildCircleGeometry()
+void d3dApp::BuildIcosahedronGeometry()
 {
+	GeometryGenerator geom = GeometryGenerator();
+	GeometryGenerator::MeshData meshData = geom.CreateGeosphere(mCircleRadius, 0);
 
-	int numPoints = 50;
-
-	float radIncr = MathHelper::Pi * 2 / numPoints;
-
-	mCircleIncr = radIncr;
-
-	std::vector<Vertex> vertices(numPoints + 1);
-	std::vector<std::uint16_t> indices(numPoints + 1);
-	for (size_t i = 0; i < numPoints; ++i)
+	std::vector<Vertex> vertices(meshData.Vertices.size());
+	for (size_t i = 0; i < vertices.size(); ++i)
 	{
-		float incr = radIncr * i;
-		float cosVal = cosf(incr);
-		float sinVal = sinf(incr);
-		XMVECTOR x = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f) * XMVectorSet(cosVal, cosVal, cosVal, cosVal);
-		XMVECTOR z = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f) * XMVectorSet(sinVal, sinVal, sinVal, sinVal);
-		XMVECTOR mag = XMVectorSet(mCircleRadius, mCircleRadius, mCircleRadius, mCircleRadius);
-		XMVECTOR xmPos = (x + z) * mag;
-
-		XMStoreFloat3(&vertices[i].Pos, xmPos);
-		XMStoreFloat3(&vertices[i].Normal, (x + z));
-		indices[i] = (uint16_t)i;
+		vertices[i].Pos = meshData.Vertices[i].Position;
+		vertices[i].Normal = meshData.Vertices[i].Normal;
 	}
 
-	vertices[numPoints] = vertices[0];
-	indices[numPoints] = (uint16_t)numPoints;
+	std::vector<std::uint16_t> indices;
+	indices.insert(indices.end(), std::begin(meshData.GetIndices16()), std::end(meshData.GetIndices16()));
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
 	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "circle";
+	geo->Name = "ico";
 
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
 	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
@@ -375,9 +361,9 @@ void d3dApp::BuildCircleGeometry()
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
 
-	geo->DrawArgs["circle"] = submesh;
+	geo->DrawArgs["ico"] = submesh;
 
-	mGeometries["circle"] = std::move(geo);
+	mGeometries["ico"] = std::move(geo);
 }
 
 void d3dApp::BuildPSOs()
@@ -395,11 +381,11 @@ void d3dApp::BuildPSOs()
 		reinterpret_cast<BYTE*>(mShaders["standardVS"]->GetBufferPointer()),
 		mShaders["standardVS"]->GetBufferSize()
 	};
-	opaquePsoDesc.GS =
-	{
-		reinterpret_cast<BYTE*>(mShaders["standardGS"]->GetBufferPointer()),
-		mShaders["standardGS"]->GetBufferSize()
-	};
+	//opaquePsoDesc.GS =
+	//{
+	//	reinterpret_cast<BYTE*>(mShaders["standardGS"]->GetBufferPointer()),
+	//	mShaders["standardGS"]->GetBufferSize()
+	//};
 	opaquePsoDesc.PS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["opaquePS"]->GetBufferPointer()),
@@ -409,13 +395,13 @@ void d3dApp::BuildPSOs()
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.SampleMask = UINT_MAX;
-	opaquePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+	opaquePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	opaquePsoDesc.NumRenderTargets = 1;
 	opaquePsoDesc.RTVFormats[0] = mBackBufferFormat;
 	opaquePsoDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
 	opaquePsoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
-	opaquePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	opaquePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 
 	//
@@ -438,32 +424,32 @@ void d3dApp::BuildFrameResources()
 
 void d3dApp::BuildMaterials()
 {
-	auto circle = std::make_unique<Material>();
-	circle->Name = "circle";
-	circle->MatCBIndex = 0;
-	circle->DiffuseSrvHeapIndex = 0;
-	circle->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	circle->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
-	circle->Roughness = 0.125f;
+	auto ico = std::make_unique<Material>();
+	ico->Name = "ico";
+	ico->MatCBIndex = 0;
+	ico->DiffuseSrvHeapIndex = 0;
+	ico->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	ico->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+	ico->Roughness = 0.125f;
 
-	mMaterials["circle"] = std::move(circle);
+	mMaterials["ico"] = std::move(ico);
 }
 
 void d3dApp::BuildRenderItems()
 {
-	auto circleRitem = std::make_unique<RenderItem>();
-	circleRitem->World = MathHelper::Identity4x4();
-	circleRitem->TexTransform = MathHelper::Identity4x4();
-	circleRitem->ObjCBIndex = 0;
-	circleRitem->Mat = mMaterials["circle"].get();
-	circleRitem->Geo = mGeometries["circle"].get();
-	circleRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
-	circleRitem->IndexCount = circleRitem->Geo->DrawArgs["circle"].IndexCount;
-	circleRitem->StartIndexLocation = circleRitem->Geo->DrawArgs["circle"].StartIndexLocation;
-	circleRitem->BaseVertexLocation = circleRitem->Geo->DrawArgs["circle"].BaseVertexLocation;
+	auto icoRitem = std::make_unique<RenderItem>();
+	icoRitem->World = MathHelper::Identity4x4();
+	icoRitem->TexTransform = MathHelper::Identity4x4();
+	icoRitem->ObjCBIndex = 0;
+	icoRitem->Mat = mMaterials["ico"].get();
+	icoRitem->Geo = mGeometries["ico"].get();
+	icoRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	icoRitem->IndexCount = icoRitem->Geo->DrawArgs["ico"].IndexCount;
+	icoRitem->StartIndexLocation = icoRitem->Geo->DrawArgs["ico"].StartIndexLocation;
+	icoRitem->BaseVertexLocation = icoRitem->Geo->DrawArgs["ico"].BaseVertexLocation;
 
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(circleRitem.get());
-	mAllRitems.push_back(std::move(circleRitem));
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(icoRitem.get());
+	mAllRitems.push_back(std::move(icoRitem));
 }
 
 void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
