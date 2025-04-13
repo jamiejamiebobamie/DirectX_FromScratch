@@ -39,6 +39,9 @@ struct PassConstants // constant buffer data for each frame
     float gRadius = 1.0f;
     float gIncr = 1.0f;
 
+    float gExplosionTime = 3.0f;
+    DirectX::XMFLOAT3 cbPerObjectPad2 = { 0.0f, 0.0f, 0.0f };
+
     // Indices [0, NUM_DIR_LIGHTS) are directional lights;
     // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
     // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)

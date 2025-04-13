@@ -846,6 +846,9 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.gRadius = mCircleRadius;
 	mMainPassCB.gIncr = mCircleIncr;
 
+	if ((int)mMainPassCB.TotalTime % 7 == 0)
+		mMainPassCB.gExplosionTime = mMainPassCB.TotalTime + 3.0f;
+
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
 }
