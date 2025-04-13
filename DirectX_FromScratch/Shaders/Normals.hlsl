@@ -43,40 +43,31 @@ VertexOut VS(VertexIn vin)
     return vout;
 }
 
-[maxvertexcount(2)]
-//void GS(triangle VertexOut gin[3], inout LineStream<GeoOut> lineStream)
-
-void GS(point VertexOut gin[1], inout LineStream<GeoOut> lineStream)
+[maxvertexcount(6)]
+void GS(triangle VertexOut gin[3], inout LineStream<GeoOut> lineStream)
 {
+    float3 faceNormal = { 0.0f, 0.0f, 0.0f };
+    float3 accPos = { 0.0f, 0.0f, 0.0f };
+    for (int i = 0; i < 3; i++)
+    {
+        faceNormal += gin[i].NormalW;
+        accPos += gin[i].PosW;
+    }
+    
+    faceNormal /= 3;
+    accPos /= 3;
+    
     float lineLength = 1.0f;
+    
     GeoOut p1;
-    p1.PosH = mul(float4(gin[0].PosW, 1.0f), gViewProj);
+    p1.PosH = mul(float4(accPos, 1.0f), gViewProj);
     
     GeoOut p2;
-    p2.PosH = mul(float4(gin[0].PosW + gin[0].NormalW * lineLength, 1.0f), gViewProj);
-    
-    //GeoOut p3;
-    //p3.PosH = mul(float4(gin[1].PosW, 1.0f), gViewProj);
-    
-    //GeoOut p4;
-    //p4.PosH = mul(float4(gin[1].PosW + gin[1].NormalW * lineLength, 1.0f), gViewProj);
-    
-    //GeoOut p5;
-    //p5.PosH = mul(float4(gin[2].PosW, 1.0f), gViewProj);
-    
-    //GeoOut p6;
-    //p6.PosH = mul(float4(gin[2].PosW + gin[2].NormalW * lineLength, 1.0f), gViewProj);
-   
+    p2.PosH = mul(float4(accPos + faceNormal * lineLength, 1.0f), gViewProj);
 
     lineStream.Append(p1);
     lineStream.Append(p2);
     lineStream.RestartStrip();
-    //lineStream.Append(p3);
-    //lineStream.Append(p4);
-    //lineStream.RestartStrip();
-    //lineStream.Append(p5);
-    //lineStream.Append(p6);
-    //lineStream.RestartStrip();
 }
 
 float4 PS(GeoOut pin) : SV_Target

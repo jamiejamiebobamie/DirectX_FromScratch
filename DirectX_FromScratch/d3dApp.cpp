@@ -827,7 +827,7 @@ void d3dApp::BuildPSOs()
 		reinterpret_cast<BYTE*>(mShaders["normalsPS"]->GetBufferPointer()),
 		mShaders["normalsPS"]->GetBufferSize()
 	};
-	normalsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+	normalsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;//D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 	normalsPsoDesc.InputLayout = { mStdInputLayout.data(), (UINT)mStdInputLayout.size() };
 
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&normalsPsoDesc, IID_PPV_ARGS(&mPSOs["normals"])));
