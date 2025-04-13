@@ -432,6 +432,10 @@ void d3dApp::BuildShadersAndInputLayout()
 	mShaders["treeSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "GS", "gs_5_0");
 	mShaders["treeSpritePS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");
 
+	mShaders["normalsVS"] = d3dUtil::CompileShader(L"Shaders\\Normals.hlsl", nullptr, "VS", "vs_5_0");
+	mShaders["normalsGS"] = d3dUtil::CompileShader(L"Shaders\\Normals.hlsl", nullptr, "GS", "gs_5_0");
+	mShaders["normalsPS"] = d3dUtil::CompileShader(L"Shaders\\Normals.hlsl", nullptr, "PS", "ps_5_0");
+
 	mStdInputLayout =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -605,7 +609,7 @@ void d3dApp::BuildWavesGeometry()
 void d3dApp::BuildBoxGeometry()
 {
 	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData box = geoGen.CreateBox(8.0f, 8.0f, 8.0f, 3);
+	GeometryGenerator::MeshData box = geoGen.CreateBox(8.0f, 8.0f, 8.0f, 1);
 
 	std::vector<Vertex> vertices(box.Vertices.size());
 	for (size_t i = 0; i < box.Vertices.size(); ++i)
@@ -803,6 +807,32 @@ void d3dApp::BuildPSOs()
 	treeSpritePsoDesc.BlendState.AlphaToCoverageEnable = true;
 
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&treeSpritePsoDesc, IID_PPV_ARGS(&mPSOs["treeSprites"])));
+
+	//
+	// PSO for normals
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC normalsPsoDesc = opaquePsoDesc;
+	normalsPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["normalsVS"]->GetBufferPointer()),
+		mShaders["normalsVS"]->GetBufferSize()
+	};
+	normalsPsoDesc.GS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["normalsGS"]->GetBufferPointer()),
+		mShaders["normalsGS"]->GetBufferSize()
+	};
+	normalsPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["normalsPS"]->GetBufferPointer()),
+		mShaders["normalsPS"]->GetBufferSize()
+	};
+	normalsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+	normalsPsoDesc.InputLayout = { mStdInputLayout.data(), (UINT)mStdInputLayout.size() };
+
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&normalsPsoDesc, IID_PPV_ARGS(&mPSOs["normals"])));
+
+
 	//
 	// PSO for opaque wireframe objects.
 	//
@@ -879,6 +909,7 @@ void d3dApp::BuildRenderItems()
 	mWavesRitem = wavesRitem.get();
 
 	mRitemLayer[(int)RenderLayer::Transparent].push_back(wavesRitem.get());
+	mRitemLayer[(int)RenderLayer::VertexNormals].push_back(wavesRitem.get());
 
 	auto gridRitem = std::make_unique<RenderItem>();
 	gridRitem->World = MathHelper::Identity4x4();
@@ -892,6 +923,8 @@ void d3dApp::BuildRenderItems()
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
+	mRitemLayer[(int)RenderLayer::VertexNormals].push_back(gridRitem.get());
+
 
 	auto boxRitem = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&boxRitem->World, XMMatrixTranslation(3.0f, 2.0f, -9.0f));
@@ -904,6 +937,8 @@ void d3dApp::BuildRenderItems()
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
 
 	mRitemLayer[(int)RenderLayer::AlphaTested].push_back(boxRitem.get());
+	mRitemLayer[(int)RenderLayer::VertexNormals].push_back(boxRitem.get());
+
 
 	auto treeSpritesRitem = std::make_unique<RenderItem>();
 	treeSpritesRitem->World = MathHelper::Identity4x4();
@@ -1264,6 +1299,9 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	mCommandList->SetPipelineState(mPSOs["transparent"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Transparent]);
+
+	mCommandList->SetPipelineState(mPSOs["normals"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::VertexNormals]);
 
 	// Indicate a state transition on the resource usage.
 	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
