@@ -86,9 +86,12 @@ bool d3dApp::Initialize()
     // so we have to query this information.
 	mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+	LoadTextures();
 	BuildRootSignature();
+	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
-	BuildIcosahedronGeometry();
+	BuildSkullGeometry();
+	BuildPoint();
 	BuildMaterials();
 	BuildRenderItems();
 	BuildFrameResources();
@@ -275,16 +278,22 @@ void d3dApp::CreateRtvAndDsvDescriptorHeaps()
 void d3dApp::BuildRootSignature()
 {
 
+	CD3DX12_DESCRIPTOR_RANGE texTable;
+	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+
 	// Root parameter can be a table, root descriptor or root constants.
-	CD3DX12_ROOT_PARAMETER slotRootParameter[3];
+	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
 
 	// Perfomance TIP: Order from most frequent to least frequent.
-	slotRootParameter[0].InitAsConstantBufferView(0);
-	slotRootParameter[1].InitAsConstantBufferView(1);
-	slotRootParameter[2].InitAsConstantBufferView(2);
+	slotRootParameter[0].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[1].InitAsConstantBufferView(0);
+	slotRootParameter[2].InitAsConstantBufferView(1);
+	slotRootParameter[3].InitAsConstantBufferView(2);
+
+	auto staticSamplers = GetStaticSamplers();
 
 	// A root signature is an array of root parameters.
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(3, slotRootParameter, 0, 0, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
@@ -315,19 +324,23 @@ void d3dApp::BuildShadersAndInputLayout()
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXINDEX", 0, DXGI_FORMAT_R16_UINT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 }
 
-void d3dApp::BuildIcosahedronGeometry()
+void d3dApp::BuildSkullGeometry()
 {
 	GeometryGenerator geom = GeometryGenerator();
-	GeometryGenerator::MeshData meshData = geom.CreateGeosphere(mCircleRadius, 0);
+	GeometryGenerator::MeshData meshData = geom.CreateSkull();
 
 	std::vector<Vertex> vertices(meshData.Vertices.size());
 	for (size_t i = 0; i < vertices.size(); ++i)
 	{
 		vertices[i].Pos = meshData.Vertices[i].Position;
 		vertices[i].Normal = meshData.Vertices[i].Normal;
+		vertices[i].TexC = XMFLOAT2(0.0f, 0.0f);
+		vertices[i].TexI = 0;
 	}
 
 	std::vector<std::uint16_t> indices;
@@ -337,7 +350,7 @@ void d3dApp::BuildIcosahedronGeometry()
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
 	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "ico";
+	geo->Name = "skull";
 
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
 	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
@@ -361,9 +374,57 @@ void d3dApp::BuildIcosahedronGeometry()
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
 
-	geo->DrawArgs["ico"] = submesh;
+	geo->DrawArgs["skull"] = submesh;
 
-	mGeometries["ico"] = std::move(geo);
+	mGeometries["skull"] = std::move(geo);
+}
+
+void d3dApp::BuildPoint()
+{
+
+	std::vector<Vertex> vertices(1);
+	for (size_t i = 0; i < vertices.size(); ++i)
+	{
+		vertices[i].Pos = XMFLOAT3(0.0f,0.0f,0.0f);
+		vertices[i].Normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		vertices[i].TexC = XMFLOAT2(0.0f, 0.0f);
+		vertices[i].TexI = 1;
+	}
+
+	std::vector<std::uint16_t> indices(1);
+	indices[0] = (std::uint16_t)0;
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "sun";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(Vertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
+
+	geo->DrawArgs["sun"] = submesh;
+
+	mGeometries["sun"] = std::move(geo);
 }
 
 void d3dApp::BuildPSOs()
@@ -381,11 +442,11 @@ void d3dApp::BuildPSOs()
 		reinterpret_cast<BYTE*>(mShaders["standardVS"]->GetBufferPointer()),
 		mShaders["standardVS"]->GetBufferSize()
 	};
-	opaquePsoDesc.GS =
-	{
-		reinterpret_cast<BYTE*>(mShaders["standardGS"]->GetBufferPointer()),
-		mShaders["standardGS"]->GetBufferSize()
-	};
+	//opaquePsoDesc.GS =
+	//{
+	//	reinterpret_cast<BYTE*>(mShaders["standardGS"]->GetBufferPointer()),
+	//	mShaders["standardGS"]->GetBufferSize()
+	//};
 	opaquePsoDesc.PS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["opaquePS"]->GetBufferPointer()),
@@ -393,6 +454,7 @@ void d3dApp::BuildPSOs()
 	};
 	opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//WIREFRAME;
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.SampleMask = UINT_MAX;
@@ -411,6 +473,13 @@ void d3dApp::BuildPSOs()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
 	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	opaqueWireframePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+
+	opaqueWireframePsoDesc.GS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["standardGS"]->GetBufferPointer()),
+		mShaders["standardGS"]->GetBufferSize()
+	};
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaqueWireframePsoDesc, IID_PPV_ARGS(&mPSOs["opaque_wireframe"])));
 }
 
@@ -423,34 +492,111 @@ void d3dApp::BuildFrameResources()
 	}
 }
 
+void d3dApp::LoadTextures() {
+	auto skullTex = std::make_unique<Texture>();
+	skullTex->Name = "skullTex";
+	skullTex->Filename = L"Textures/white1x1.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), skullTex->Filename.c_str(),
+		skullTex->Resource, skullTex->UploadHeap));
+
+	auto sunTex = std::make_unique<Texture>();
+	sunTex->Name = "sunTex";
+	sunTex->Filename = L"Textures/sun_rays.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), sunTex->Filename.c_str(),
+		sunTex->Resource, sunTex->UploadHeap));
+
+	mTextures[skullTex->Name] = std::move(skullTex);
+	mTextures[sunTex->Name] = std::move(sunTex);
+}
+
 void d3dApp::BuildMaterials()
 {
-	auto ico = std::make_unique<Material>();
-	ico->Name = "ico";
-	ico->MatCBIndex = 0;
-	ico->DiffuseSrvHeapIndex = 0;
-	ico->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
-	ico->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
-	ico->Roughness = 0.125f;
+	auto skull = std::make_unique<Material>();
+	skull->Name = "skull";
+	skull->MatCBIndex = 0;
+	skull->DiffuseSrvHeapIndex = 0;
+	skull->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	skull->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+	skull->Roughness = 0.125f;
 
-	mMaterials["ico"] = std::move(ico);
+	mMaterials["skull"] = std::move(skull);
+
+	auto sun = std::make_unique<Material>();
+	sun->Name = "sun";
+	sun->MatCBIndex = 1;
+	sun->DiffuseSrvHeapIndex = 1;
+	sun->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	sun->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+	sun->Roughness = 0.125f;
+
+	mMaterials["sun"] = std::move(sun);
+}
+
+void d3dApp::BuildDescriptorHeaps()
+{
+	//
+	// Create the SRV heap.
+	//
+	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+	srvHeapDesc.NumDescriptors = 2;
+	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
+
+	//
+	// Fill out the heap with actual descriptors.
+	//
+	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+	auto skullTex = mTextures["skullTex"]->Resource;
+	auto sunTex = mTextures["sunTex"]->Resource;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = skullTex->GetDesc().Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = -1;
+	md3dDevice->CreateShaderResourceView(skullTex.Get(), &srvDesc, hDescriptor);
+
+	// next descriptor
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = sunTex->GetDesc().Format;
+	md3dDevice->CreateShaderResourceView(sunTex.Get(), &srvDesc, hDescriptor);
 }
 
 void d3dApp::BuildRenderItems()
 {
-	auto icoRitem = std::make_unique<RenderItem>();
-	icoRitem->World = MathHelper::Identity4x4();
-	icoRitem->TexTransform = MathHelper::Identity4x4();
-	icoRitem->ObjCBIndex = 0;
-	icoRitem->Mat = mMaterials["ico"].get();
-	icoRitem->Geo = mGeometries["ico"].get();
-	icoRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	icoRitem->IndexCount = icoRitem->Geo->DrawArgs["ico"].IndexCount;
-	icoRitem->StartIndexLocation = icoRitem->Geo->DrawArgs["ico"].StartIndexLocation;
-	icoRitem->BaseVertexLocation = icoRitem->Geo->DrawArgs["ico"].BaseVertexLocation;
+	auto skullRitem = std::make_unique<RenderItem>();
+	skullRitem->World = MathHelper::Identity4x4();
+	skullRitem->TexTransform = MathHelper::Identity4x4();
+	skullRitem->ObjCBIndex = 0;
+	skullRitem->Mat = mMaterials["skull"].get();
+	skullRitem->Geo = mGeometries["skull"].get();
+	skullRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
+	skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
+	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(skullRitem.get());
 
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(icoRitem.get());
-	mAllRitems.push_back(std::move(icoRitem));
+	auto pointRitem = std::make_unique<RenderItem>();
+	pointRitem->World = MathHelper::Identity4x4();
+	pointRitem->TexTransform = MathHelper::Identity4x4();
+	pointRitem->ObjCBIndex = 1;
+	pointRitem->Mat = mMaterials["sun"].get();
+	pointRitem->Geo = mGeometries["sun"].get();
+	pointRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+	pointRitem->IndexCount = pointRitem->Geo->DrawArgs["sun"].IndexCount;
+	pointRitem->StartIndexLocation = pointRitem->Geo->DrawArgs["sun"].StartIndexLocation;
+	pointRitem->BaseVertexLocation = pointRitem->Geo->DrawArgs["sun"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Sun].push_back(pointRitem.get());
+
+	mAllRitems.push_back(std::move(skullRitem));
+	mAllRitems.push_back(std::move(pointRitem));
+
 }
 
 void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -472,11 +618,14 @@ void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vect
 		cmdList->IASetIndexBuffer(&ibv);
 		cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
+		CD3DX12_GPU_DESCRIPTOR_HANDLE tex(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+		tex.Offset(ri->Mat->DiffuseSrvHeapIndex, mCbvSrvDescriptorSize);
+
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
 		D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex * matCBByteSize;
 
-		cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress);
-		cmdList->SetGraphicsRootConstantBufferView(2, matCBAddress);
+		cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
+		cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
 
 		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
@@ -640,14 +789,7 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
 	// Reusing the command list reuses memory.
-	if (mIsWireframe)
-	{
-		ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque_wireframe"].Get()));
-	}
-	else
-	{
-		ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
-	}
+	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
 
 	mCommandList->RSSetViewports(1, &mScreenViewport);
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -666,12 +808,18 @@ void d3dApp::Draw(const GameTimer& gt)
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvView = DepthStencilView();
 	mCommandList->OMSetRenderTargets(1, &backBuff, true, &dsvView);
 
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
+	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
 	auto passCB = mCurrFrameResource->PassCB->Resource();
-	mCommandList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
+
+	mCommandList->SetPipelineState(mPSOs["opaque_wireframe"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sun]);
 
 	// Indicate a state transition on the resource usage.
 	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -843,14 +991,65 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
 	mMainPassCB.Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
 
-	mMainPassCB.gRadius = mCircleRadius;
-	mMainPassCB.gIncr = mCircleIncr;
-
-	if ((int)mMainPassCB.TotalTime % 7 == 0)
-		mMainPassCB.gExplosionTime = mMainPassCB.TotalTime + 3.0f;
-
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
+}
+
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> d3dApp::GetStaticSamplers()
+{
+	// Applications usually only need a handful of samplers.  So just define them all up front
+	// and keep them available as part of the root signature.  
+
+	const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
+		0, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+		1, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+		2, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+		3, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
+		4, // shaderRegister
+		D3D12_FILTER_ANISOTROPIC, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
+		0.0f,                             // mipLODBias
+		8);                               // maxAnisotropy
+
+	const CD3DX12_STATIC_SAMPLER_DESC anisotropicClamp(
+		5, // shaderRegister
+		D3D12_FILTER_ANISOTROPIC, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressW
+		0.0f,                              // mipLODBias
+		8);                                // maxAnisotropy
+
+	return {
+		pointWrap, pointClamp,
+		linearWrap, linearClamp,
+		anisotropicWrap, anisotropicClamp };
 }
 
 LRESULT d3dApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

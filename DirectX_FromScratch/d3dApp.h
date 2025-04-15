@@ -26,6 +26,7 @@ using namespace DirectX::PackedVector;
 enum class RenderLayer : int
 {
 	Opaque = 0,
+	Sun,
 	Count
 };
 
@@ -101,11 +102,14 @@ private:
 
 	void BuildRootSignature();
 	void BuildShadersAndInputLayout();
-	void BuildIcosahedronGeometry();
+	void BuildSkullGeometry();
+	void BuildPoint();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
 	void BuildRenderItems();
+	void BuildDescriptorHeaps();
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 
 private:
@@ -145,10 +149,6 @@ private:
 
 	POINT mLastMousePos;
 
-	float mCircleRadius = 1.0f;
-	float mCircleIncr = 1.0f;
-
-
 protected:
 
 	 void CreateRtvAndDsvDescriptorHeaps();
@@ -176,6 +176,7 @@ protected:
 	void CalculateFrameStats();
 
 	void LogAdapters();
+	void LoadTextures();
 	void LogAdapterOutputs(IDXGIAdapter* adapter);
 	void LogOutputDisplayModes(IDXGIOutput* ouput, DXGI_FORMAT format);
 

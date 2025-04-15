@@ -20,6 +20,13 @@
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
+SamplerState gsamPointWrap : register(s0);
+SamplerState gsamPointClamp : register(s1);
+SamplerState gsamLinearWrap : register(s2);
+SamplerState gsamLinearClamp : register(s3);
+SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamAnisotropicClamp : register(s5);
+
 // Constant data that varies per frame.
 cbuffer cbPerObject : register(b0)
 {
@@ -48,17 +55,10 @@ cbuffer cbPass : register(b1)
     float gTotalTime;
     float gDeltaTime;
     
+    float4 gFogColor;
+    
     float4 gAmbientLight;
-	float4 gFogColor;
     
-	float gFogStart;
-	float gFogRange;    
-    float gRadius;
-    float gIncr;
-    
-    float gExplosionTime;
-    float3 cbPerObjectPad2;
-
     // Indices [0, NUM_DIR_LIGHTS) are directional lights;
     // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
     // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
@@ -73,6 +73,9 @@ cbuffer cbMaterial : register(b2)
     float    gRoughness;
 	float4x4 gMatTransform;
 };
+
+Texture2D skullTex : register(t0);
+Texture2D sunTex : register(t1);
 
 struct VertexIn
 {
@@ -111,52 +114,61 @@ GeoOut VS(VertexIn vin)
     return vout;
 }
 
-[maxvertexcount(3)]
-void GS(triangle GeoOut gin[3],
+ // We expand each point into a quad (4 vertices), so the maximum number of vertices
+ // we output per geometry shader invocation is 4.
+[maxvertexcount(4)]
+void GS(point VertexOut gin[1],
         uint primID : SV_PrimitiveID,
         inout TriangleStream<GeoOut> triStream)
 {
-    float3 faceNormal = float3(0.0f, 0.0f, 0.0f);
-    for (int i = 0; i < 3; i++)
+	//
+	// Compute the local coordinate system of the sprite relative to the world
+	// space such that the billboard is aligned with the y-axis and faces the eye.
+	//
+
+    float3 up = float3(0.0f, 1.0f, 0.0f);
+    float3 look = gEyePosW - gin[0].PosW;
+    look = normalize(look);
+    float3 right = cross(up, look);
+
+	//
+	// Compute triangle strip vertices (quad) in world space.
+	//
+   
+    float d = abs(dot(look, up));
+    
+    float halfWidth = 0.5f * 5;
+    float halfHeight = 0.5f * 5;
+	
+    float4 v[4];
+    v[0] = float4(gin[0].PosW + halfWidth * right - halfHeight * up, 1.0f);
+    v[1] = float4(gin[0].PosW + halfWidth * right + halfHeight * up, 1.0f);
+    v[2] = float4(gin[0].PosW - halfWidth * right - halfHeight * up, 1.0f);
+    v[3] = float4(gin[0].PosW - halfWidth * right + halfHeight * up, 1.0f);
+	
+    float2 texC[4] =
     {
-        faceNormal += gin[i].NormalW;
+        float2(0.0f, 1.0f),
+		float2(0.0f, 0.0f),
+		float2(1.0f, 1.0f),
+		float2(1.0f, 0.0f)
+    };
+	
+    GeoOut gout;
+	[unroll]
+    for (int i = 0; i < 4; ++i)
+    {
+        gout.PosH = mul(v[i], gViewProj);
+        gout.PosW = v[i].xyz;
+        gout.NormalW = look;
+        triStream.Append(gout);
     }
-    faceNormal /= 3.0f;
-
-    float3 explosionForce = 30.0f;
-    
-    float3 explosionAmt = faceNormal * clamp((gTotalTime - gExplosionTime), 0.0f, 1000.0f) 
-        * (primID != 0 ? primID : 1.0f) // add positional variance to each face
-        * explosionForce;
-    
-    GeoOut gOut[3];
-    gOut[0].PosW = gin[0].PosW + explosionAmt;
-    gOut[0].NormalW = gin[0].NormalW;
-    gOut[0].PosH = mul(float4(gOut[0].PosW, 1.0f), gViewProj);
-  
-    gOut[1].PosW = gin[1].PosW + explosionAmt;
-    gOut[1].NormalW = gin[1].NormalW;
-    gOut[1].PosH = mul(float4(gOut[1].PosW, 1.0f), gViewProj);
-    
-    gOut[2].PosW = gin[2].PosW + explosionAmt;
-    gOut[2].NormalW = gin[2].NormalW;
-    gOut[2].PosH = mul(float4(gOut[2].PosW, 1.0f), gViewProj);;
-    
-    triStream.Append(gOut[0]);
-    triStream.Append(gOut[1]);
-    triStream.Append(gOut[2]);
-    
-//    triStream.RestartStrip();
 }
-
 
 float4 PS(GeoOut pin) : SV_Target
 {
-    float4 diffuseAlbedo = gDiffuseAlbedo;//
-    //pin.//Color; //
-    //gDiffuseAlbedo;;
-    //pin.Color;
-    //gDiffuseAlbedo;
+
+    float4 diffuseAlbedo = gDiffuseAlbedo;
 
     // Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
@@ -180,6 +192,7 @@ float4 PS(GeoOut pin) : SV_Target
     // Common convention to take alpha from diffuse albedo.
     litColor.a = diffuseAlbedo.a;
 
+    //return pin.isOrtho == true ? float4(1.0, 0.0, 0.0, 1.0) : litColor;
     return litColor;
 }
 
