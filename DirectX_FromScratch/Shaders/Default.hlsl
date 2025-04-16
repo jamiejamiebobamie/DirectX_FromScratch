@@ -137,8 +137,8 @@ void GS(point VertexOut gin[1],
    
     float d = abs(dot(look, up));
     
-    float halfWidth = 0.5f * 5;
-    float halfHeight = 0.5f * 5;
+    float halfWidth = 0.5f * 20;
+    float halfHeight = 0.5f * 20;
 	
     float4 v[4];
     v[0] = float4(gin[0].PosW + halfWidth * right - halfHeight * up, 1.0f);

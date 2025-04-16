@@ -454,7 +454,7 @@ void d3dApp::BuildPSOs()
 	};
 	opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-	opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//WIREFRAME;
+	opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.SampleMask = UINT_MAX;
@@ -472,7 +472,7 @@ void d3dApp::BuildPSOs()
 	//
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
-	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 	opaqueWireframePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 
 	opaqueWireframePsoDesc.GS =
@@ -583,7 +583,7 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(skullRitem.get());
 
 	auto pointRitem = std::make_unique<RenderItem>();
-	pointRitem->World = MathHelper::Identity4x4();
+	XMStoreFloat4x4(&pointRitem->World, XMMatrixTranslation(0.0f, 3.0f, 2.0f));
 	pointRitem->TexTransform = MathHelper::Identity4x4();
 	pointRitem->ObjCBIndex = 1;
 	pointRitem->Mat = mMaterials["sun"].get();
