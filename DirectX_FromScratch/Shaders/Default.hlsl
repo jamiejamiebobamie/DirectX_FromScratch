@@ -100,6 +100,7 @@ struct GeoOut
 GeoOut VS(VertexIn vin)
 {
     GeoOut vout = (VertexOut) 0.0f;
+   
 	
     // Transform to world space.
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
@@ -153,11 +154,15 @@ void GS(point VertexOut gin[1],
 		float2(1.0f, 1.0f),
 		float2(1.0f, 0.0f)
     };
-	
+    
+
+    
     GeoOut gout;
 	[unroll]
     for (int i = 0; i < 4; ++i)
     {
+        v[i].xy += 0.5f * sin(v[i].x) * sin(9.0f * gTotalTime);
+        //v[i].z *= 0.6f + 0.4f * sin(2.0f * gTotalTime);
         gout.PosH = mul(v[i], gViewProj);
         gout.PosW = v[i].xyz;
         gout.NormalW = look;
