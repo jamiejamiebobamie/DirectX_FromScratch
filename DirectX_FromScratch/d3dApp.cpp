@@ -494,7 +494,7 @@ void d3dApp::BuildPSOs()
 	//
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
-	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;// D3D12_FILL_MODE_WIREFRAME;//SOLID;
+	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 	opaqueWireframePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 
 	opaqueWireframePsoDesc.DepthStencilState.DepthEnable = true;
