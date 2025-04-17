@@ -456,7 +456,29 @@ void d3dApp::BuildPSOs()
 	opaquePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//D3D12_FILL_MODE_WIREFRAME;
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+
+	opaquePsoDesc.DepthStencilState.DepthEnable = true;
+	opaquePsoDesc.DepthStencilState.StencilEnable = true;
+
+	opaquePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	opaquePsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+
+	opaquePsoDesc.DepthStencilState.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	opaquePsoDesc.DepthStencilState.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	opaquePsoDesc.DepthStencilState.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	opaquePsoDesc.DepthStencilState.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	opaquePsoDesc.DepthStencilState.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	opaquePsoDesc.DepthStencilState.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	opaquePsoDesc.DepthStencilState.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	opaquePsoDesc.DepthStencilState.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	opaquePsoDesc.DepthStencilState.StencilReadMask = 0;
+	opaquePsoDesc.DepthStencilState.StencilWriteMask = 0;
+
+
+
+
 	opaquePsoDesc.SampleMask = UINT_MAX;
 	opaquePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	opaquePsoDesc.NumRenderTargets = 1;
@@ -472,8 +494,27 @@ void d3dApp::BuildPSOs()
 	//
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
-	//opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;// D3D12_FILL_MODE_WIREFRAME;//SOLID;
 	opaqueWireframePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+
+	opaqueWireframePsoDesc.DepthStencilState.DepthEnable = true;
+	opaqueWireframePsoDesc.DepthStencilState.StencilEnable = true;
+
+	opaqueWireframePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	opaqueWireframePsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+
+	opaqueWireframePsoDesc.DepthStencilState.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	opaqueWireframePsoDesc.DepthStencilState.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	opaqueWireframePsoDesc.DepthStencilState.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	opaqueWireframePsoDesc.DepthStencilState.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	opaqueWireframePsoDesc.DepthStencilState.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	opaqueWireframePsoDesc.DepthStencilState.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	opaqueWireframePsoDesc.DepthStencilState.BackFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	opaqueWireframePsoDesc.DepthStencilState.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_NOT_EQUAL;
+
+	opaquePsoDesc.DepthStencilState.StencilReadMask = 0;
+	opaquePsoDesc.DepthStencilState.StencilWriteMask = 0;
 
 	D3D12_RENDER_TARGET_BLEND_DESC blendDesc;
 	blendDesc.BlendEnable = true;
@@ -831,7 +872,8 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-
+	
+	mCommandList->OMSetStencilRef(1);
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 
 	mCommandList->SetPipelineState(mPSOs["opaque_wireframe"].Get());

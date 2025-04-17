@@ -178,14 +178,14 @@ float4 PS(GeoOut pin) : SV_Target
         float x = pin.TexC.x - 0.5f;
         float y = pin.TexC.y - 0.5f;
         
-        float theta = gTotalTime * 1.5f;
+        float theta = gTotalTime * 0.5f;
         
         pin.TexC.x = x * cos(theta) - y * sin(theta);
         pin.TexC.y = y * cos(theta) + x * sin(theta);
     }
 
        
-    float4 diffuseAlbedo = tex.Sample(gsamAnisotropicWrap, pin.TexC * 0.75f + 0.5f);
+    float4 diffuseAlbedo = tex.Sample(gsamAnisotropicWrap, pin.TexC + 0.5f);
 
     // Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
