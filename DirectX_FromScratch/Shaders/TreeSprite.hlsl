@@ -98,13 +98,14 @@ struct GeoOut
     float3 SlopeW : SLOPE;
 };
 
-VertexOut VS(VertexIn vin)
+VertexOut VS(VertexIn vin, uint VertID : SV_VertexID)
 {
 	VertexOut vout;
 
 	// Just pass data over to geometry shader.
     vout.CenterW = vin.PosW;    
-	vout.SizeW   = vin.SizeW;
+    vout.SizeW = float2(2 + VertID, 2 + VertID);
+    //vin.SizeW;
     vout.SlopeW = vin.SlopeW;
 
 	return vout;
@@ -172,9 +173,9 @@ void GS(point VertexOut gin[1],
 		gout.PrimID   = primID;
         gout.SlopeW  = gin[0].SlopeW;
 		
-        if (v[i].y > 0.0f // don't put trees in water
-			&& dot(gin[0].SlopeW, float3(0.0f, 1.0f, 0.0f)) < 0.83f // don't put trees on slopes
-			)
+//        if (v[i].y > 0.0f // don't put trees in water
+//			&& dot(gin[0].SlopeW, float3(0.0f, 1.0f, 0.0f)) < 0.83f // don't put trees on slopes
+//			)
             triStream.Append(gout);
     }
 }

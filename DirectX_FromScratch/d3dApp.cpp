@@ -653,7 +653,7 @@ void d3dApp::BuildBoxGeometry()
 
 void d3dApp::BuildTreeSpritesGeometry()
 {
-	static const int treeCount = 450;
+	static const int treeCount = 16;
 	float treeArea = 150.0f;
 	std::array<TreeSpriteVertex, treeCount> vertices;
 	for (UINT i = 0; i < treeCount; ++i)
@@ -923,7 +923,7 @@ void d3dApp::BuildRenderItems()
 	mAllRitems.push_back(std::move(treeSpritesRitem));
 }
 
-void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
+void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems, bool isDraw)
 {
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 	UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
@@ -955,9 +955,9 @@ void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vect
 		cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
 		cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
 
-		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+			cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+		}
 	}
-}
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> d3dApp::GetStaticSamplers()
 {
