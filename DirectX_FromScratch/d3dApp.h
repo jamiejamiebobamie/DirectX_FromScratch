@@ -11,7 +11,7 @@
 #include "UploadBuffer.h"
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
-#include "Waves.h"
+#include "GpuWaves.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -29,6 +29,7 @@ enum class RenderLayer : int
 	Transparent,
 	AlphaTested,
 	AlphaTestedTreeSprites,
+	GpuWaves,
 	Count
 };
 
@@ -54,7 +55,9 @@ struct RenderItem
 
 	XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
 
-	UINT texIndex = 0;
+	// Used for GPU waves render items.
+	DirectX::XMFLOAT2 DisplacementMapTexelSize = { 1.0f, 1.0f };
+	float GridSpatialStep = 1.0f;
 
 	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
 	// Because we have an object cbuffer for each FrameResource, we have to apply the
@@ -76,8 +79,6 @@ struct RenderItem
 	UINT StartIndexLocation = 0;
 	int BaseVertexLocation = 0;
 };
-
-
 
 class d3dApp
 {
@@ -109,10 +110,11 @@ private:
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
-	void UpdateWaves(const GameTimer& gt);
+	void UpdateWavesGPU(const GameTimer& gt);
 
 	void LoadTextures();
 	void BuildRootSignature();
+	void BuildWavesRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
 	void BuildLandGeometry();
@@ -139,6 +141,7 @@ private:
 	UINT mCbvSrvDescriptorSize = 0;
 
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
+	ComPtr<ID3D12RootSignature> mWavesRootSignature = nullptr;
 
 	ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
 
@@ -151,13 +154,11 @@ private:
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mStdInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mTreeSpriteInputLayout;
 
-	RenderItem* mWavesRitem = nullptr;
-
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
-	std::unique_ptr<Waves> mWaves;
+	std::unique_ptr<GpuWaves> mWaves;
 
 	PassConstants mMainPassCB;
 

@@ -84,7 +84,7 @@
     <ClInclude Include="UploadBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Waves.h">
+    <ClInclude Include="GpuWaves.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -113,7 +113,7 @@
     <ClCompile Include="DDSTextureLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Waves.cpp">
+    <ClCompile Include="GpuWaves.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -129,5 +129,9 @@
     <Image Include="DirectX_FromScratch.ico">
       <Filter>Resource Files</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\DisturbWavesCS.hlsl" />
+    <FxCompile Include="Shaders\UpdateWavesCS.hlsl" />
   </ItemGroup>
 </Project>

@@ -8,10 +8,9 @@ struct ObjectConstants // constant buffer data for each render object
 {
     DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
     DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
-    UINT texIndex = 0;
-    UINT     ObjPad0;
-    UINT     ObjPad1;
-    UINT     ObjPad2;
+    DirectX::XMFLOAT2 DisplacementMapTexelSize = { 1.0f, 1.0f };
+    float GridSpatialStep = 1.0f;
+    float Pad;
 };
 
 struct PassConstants // constant buffer data for each frame
@@ -58,7 +57,7 @@ struct FrameResource
 {
 public:
 
-    FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT materialCount, UINT waveVertCount);
+    FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT materialCount);
     FrameResource(const FrameResource& rhs) = delete;
     FrameResource& operator=(const FrameResource& rhs) = delete;
     ~FrameResource();
