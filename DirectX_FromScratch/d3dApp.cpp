@@ -91,8 +91,12 @@ bool d3dApp::Initialize()
 		mCommandList.Get(),
 		512, 512, 0.25f, 0.03f, 2.0f, 0.2f);
 
+	mBlurFilter = std::make_unique<BlurFilter>(md3dDevice.Get(),
+		mClientWidth, mClientHeight, DXGI_FORMAT_R8G8B8A8_UNORM);
+
 	LoadTextures();
 	BuildRootSignature();
+	BuildPostProcessRootSignature();
 	BuildWavesRootSignature();
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
@@ -363,6 +367,46 @@ void d3dApp::BuildRootSignature()
 		IID_PPV_ARGS(mRootSignature.GetAddressOf())));
 }
 
+void d3dApp::BuildPostProcessRootSignature()
+{
+	CD3DX12_DESCRIPTOR_RANGE srvTable;
+	srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+
+	CD3DX12_DESCRIPTOR_RANGE uavTable;
+	uavTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+
+	// Root parameter can be a table, root descriptor or root constants.
+	CD3DX12_ROOT_PARAMETER slotRootParameter[3];
+
+	// Perfomance TIP: Order from most frequent to least frequent.
+	slotRootParameter[0].InitAsConstants(12, 0);
+	slotRootParameter[1].InitAsDescriptorTable(1, &srvTable);
+	slotRootParameter[2].InitAsDescriptorTable(1, &uavTable);
+
+	// A root signature is an array of root parameters.
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(3, slotRootParameter,
+		0, nullptr,
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
+	ComPtr<ID3DBlob> serializedRootSig = nullptr;
+	ComPtr<ID3DBlob> errorBlob = nullptr;
+	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+
+	if (errorBlob != nullptr)
+	{
+		::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+	}
+	ThrowIfFailed(hr);
+
+	ThrowIfFailed(md3dDevice->CreateRootSignature(
+		0,
+		serializedRootSig->GetBufferPointer(),
+		serializedRootSig->GetBufferSize(),
+		IID_PPV_ARGS(mPostProcessRootSignature.GetAddressOf())));
+}
+
 void d3dApp::BuildWavesRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE uavTable0;
@@ -409,13 +453,14 @@ void d3dApp::BuildWavesRootSignature()
 
 void d3dApp::BuildDescriptorHeaps()
 {
-	UINT srvCount = 4;
+	const int textureDescriptorCount = 4;
+	const int blurDescriptorCount = 4;
 
 	//
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = srvCount + mWaves->DescriptorCount();;
+	srvHeapDesc.NumDescriptors = textureDescriptorCount + blurDescriptorCount + mWaves->DescriptorCount();
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -463,9 +508,14 @@ void d3dApp::BuildDescriptorHeaps()
 	md3dDevice->CreateShaderResourceView(treeArrayTex.Get(), &srvDesc, hDescriptor);
 
 	mWaves->BuildDescriptors(
-		CD3DX12_CPU_DESCRIPTOR_HANDLE(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), srvCount, mCbvSrvDescriptorSize),
-		CD3DX12_GPU_DESCRIPTOR_HANDLE(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart(), srvCount, mCbvSrvDescriptorSize),
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), textureDescriptorCount, mCbvSrvDescriptorSize),
+		CD3DX12_GPU_DESCRIPTOR_HANDLE(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart(), textureDescriptorCount, mCbvSrvDescriptorSize),
 		mCbvSrvDescriptorSize);
+
+	mBlurFilter->BuildDescriptors(
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), textureDescriptorCount + mWaves->DescriptorCount(), mCbvSrvUavDescriptorSize),
+		CD3DX12_GPU_DESCRIPTOR_HANDLE(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart(), textureDescriptorCount + mWaves->DescriptorCount(), mCbvSrvUavDescriptorSize),
+		mCbvSrvUavDescriptorSize);
 }
 
 void d3dApp::BuildShadersAndInputLayout()
@@ -501,6 +551,9 @@ void d3dApp::BuildShadersAndInputLayout()
 	mShaders["treeSpriteVS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["treeSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "GS", "gs_5_0");
 	mShaders["treeSpritePS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");
+
+	mShaders["horzBlurCS"] = d3dUtil::CompileShader(L"Shaders\\HorzBlurCS.hlsl", nullptr, "HorzBlurCS", "cs_5_0");
+	mShaders["vertBlurCS"] = d3dUtil::CompileShader(L"Shaders\\VertBlurCS.hlsl", nullptr, "VertBlurCS", "cs_5_0");
 
 	mStdInputLayout =
 	{
@@ -868,8 +921,8 @@ void d3dApp::BuildPSOs()
 
 
 	//
-// PSO for drawing waves
-//
+	// PSO for drawing waves
+	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC wavesRenderPSO = transparentPsoDesc;
 	wavesRenderPSO.VS =
 	{
@@ -912,6 +965,32 @@ void d3dApp::BuildPSOs()
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
 	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaqueWireframePsoDesc, IID_PPV_ARGS(&mPSOs["opaque_wireframe"])));
+
+	//
+	// PSO for horizontal blur
+	//
+	D3D12_COMPUTE_PIPELINE_STATE_DESC horzBlurPSO = {};
+	horzBlurPSO.pRootSignature = mPostProcessRootSignature.Get();
+	horzBlurPSO.CS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["horzBlurCS"]->GetBufferPointer()),
+		mShaders["horzBlurCS"]->GetBufferSize()
+	};
+	horzBlurPSO.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+	ThrowIfFailed(md3dDevice->CreateComputePipelineState(&horzBlurPSO, IID_PPV_ARGS(&mPSOs["horzBlur"])));
+
+	//
+	// PSO for vertical blur
+	//
+	D3D12_COMPUTE_PIPELINE_STATE_DESC vertBlurPSO = {};
+	vertBlurPSO.pRootSignature = mPostProcessRootSignature.Get();
+	vertBlurPSO.CS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["vertBlurCS"]->GetBufferPointer()),
+		mShaders["vertBlurCS"]->GetBufferSize()
+	};
+	vertBlurPSO.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+	ThrowIfFailed(md3dDevice->CreateComputePipelineState(&vertBlurPSO, IID_PPV_ARGS(&mPSOs["vertBlur"])));
 }
 
 void d3dApp::BuildFrameResources()
@@ -1375,9 +1454,22 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->SetPipelineState(mPSOs["wavesRender"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::GpuWaves]);
 
+
+	mBlurFilter->Execute(mCommandList.Get(), mPostProcessRootSignature.Get(),
+		mPSOs["horzBlur"].Get(), mPSOs["vertBlur"].Get(), CurrentBackBuffer(), 4);
+
+	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+
+	// Prepare to copy blurred output to the back buffer.
+	mCommandList->ResourceBarrier(1, &resBarr);
+
+	mCommandList->CopyResource(CurrentBackBuffer(), mBlurFilter->Output());
+
+
 	// Indicate a state transition on the resource usage.
 	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+		D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
 	mCommandList->ResourceBarrier(1, &resBarr);
 
 	// Done recording commands.

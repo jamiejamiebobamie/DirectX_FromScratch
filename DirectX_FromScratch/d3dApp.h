@@ -12,6 +12,7 @@
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
 #include "GpuWaves.h"
+#include "BlurFilter.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -114,6 +115,7 @@ private:
 
 	void LoadTextures();
 	void BuildRootSignature();
+	void BuildPostProcessRootSignature();
 	void BuildWavesRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
@@ -142,6 +144,7 @@ private:
 
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 	ComPtr<ID3D12RootSignature> mWavesRootSignature = nullptr;
+	ComPtr<ID3D12RootSignature> mPostProcessRootSignature = nullptr;
 
 	ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
 
@@ -159,6 +162,8 @@ private:
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
 	std::unique_ptr<GpuWaves> mWaves;
+
+	std::unique_ptr<BlurFilter> mBlurFilter;
 
 	PassConstants mMainPassCB;
 
