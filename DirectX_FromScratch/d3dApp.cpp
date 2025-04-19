@@ -89,11 +89,22 @@ bool d3dApp::Initialize()
 	mWaves = std::make_unique<GpuWaves>(
 		md3dDevice.Get(),
 		mCommandList.Get(),
-		512, 512, 0.25f, 0.03f, 2.0f, 0.2f);
+		256, 256, 0.25f, 0.03f, 2.0f, 0.2f);
+
+	mSobelFilter = std::make_unique<SobelFilter>(
+		md3dDevice.Get(),
+		mClientWidth, mClientHeight,
+		mBackBufferFormat);
+
+	mOffscreenRT = std::make_unique<RenderTarget>(
+		md3dDevice.Get(),
+		mClientWidth, mClientHeight,
+		mBackBufferFormat);
 
 	LoadTextures();
 	BuildRootSignature();
 	BuildWavesRootSignature();
+	BuildPostProcessRootSignature();
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
 	BuildLandGeometry();
@@ -407,15 +418,70 @@ void d3dApp::BuildWavesRootSignature()
 		IID_PPV_ARGS(mWavesRootSignature.GetAddressOf())));
 }
 
+void d3dApp::BuildPostProcessRootSignature()
+{
+	CD3DX12_DESCRIPTOR_RANGE srvTable0;
+	srvTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+
+	CD3DX12_DESCRIPTOR_RANGE srvTable1;
+	srvTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+
+	CD3DX12_DESCRIPTOR_RANGE uavTable0;
+	uavTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+
+	// Root parameter can be a table, root descriptor or root constants.
+	CD3DX12_ROOT_PARAMETER slotRootParameter[3];
+
+	// Perfomance TIP: Order from most frequent to least frequent.
+	slotRootParameter[0].InitAsDescriptorTable(1, &srvTable0);
+	slotRootParameter[1].InitAsDescriptorTable(1, &srvTable1);
+	slotRootParameter[2].InitAsDescriptorTable(1, &uavTable0);
+
+	auto staticSamplers = GetStaticSamplers();
+
+	// A root signature is an array of root parameters.
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(3, slotRootParameter,
+		(UINT)staticSamplers.size(), staticSamplers.data(),
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
+	ComPtr<ID3DBlob> serializedRootSig = nullptr;
+	ComPtr<ID3DBlob> errorBlob = nullptr;
+	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+
+	if (errorBlob != nullptr)
+	{
+		::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+	}
+	ThrowIfFailed(hr);
+
+	ThrowIfFailed(md3dDevice->CreateRootSignature(
+		0,
+		serializedRootSig->GetBufferPointer(),
+		serializedRootSig->GetBufferSize(),
+		IID_PPV_ARGS(mPostProcessRootSignature.GetAddressOf())));
+}
+
 void d3dApp::BuildDescriptorHeaps()
 {
+	// Offscreen RTV goes after the swap chain descriptors.
+	int rtvOffset = SwapChainBufferCount;
+
 	UINT srvCount = 4;
+
+	int waveSrvOffset = srvCount;
+	int sobelSrvOffset = waveSrvOffset + mWaves->DescriptorCount();
+	int offscreenSrvOffset = sobelSrvOffset + mSobelFilter->DescriptorCount();
 
 	//
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = srvCount + mWaves->DescriptorCount();;
+	srvHeapDesc.NumDescriptors = srvCount +
+		mWaves->DescriptorCount() +
+		mSobelFilter->DescriptorCount() +
+		1; // extra offscreen render target
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -462,10 +528,25 @@ void d3dApp::BuildDescriptorHeaps()
 	srvDesc.Texture2DArray.ArraySize = treeArrayTex->GetDesc().DepthOrArraySize;
 	md3dDevice->CreateShaderResourceView(treeArrayTex.Get(), &srvDesc, hDescriptor);
 
+	auto srvCpuStart = mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	auto srvGpuStart = mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
+	auto rtvCpuStart = mRtvHeap->GetCPUDescriptorHandleForHeapStart();
+
 	mWaves->BuildDescriptors(
-		CD3DX12_CPU_DESCRIPTOR_HANDLE(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), srvCount, mCbvSrvDescriptorSize),
-		CD3DX12_GPU_DESCRIPTOR_HANDLE(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart(), srvCount, mCbvSrvDescriptorSize),
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, waveSrvOffset, mCbvSrvDescriptorSize),
+		CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, waveSrvOffset, mCbvSrvDescriptorSize),
 		mCbvSrvDescriptorSize);
+
+	mSobelFilter->BuildDescriptors(
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, sobelSrvOffset, mCbvSrvDescriptorSize),
+		CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, sobelSrvOffset, mCbvSrvDescriptorSize),
+		mCbvSrvDescriptorSize);
+
+	mOffscreenRT->BuildDescriptors(
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, offscreenSrvOffset, mCbvSrvDescriptorSize),
+		CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, offscreenSrvOffset, mCbvSrvDescriptorSize),
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvCpuStart, rtvOffset, mRtvDescriptorSize));
 }
 
 void d3dApp::BuildShadersAndInputLayout()
@@ -501,6 +582,10 @@ void d3dApp::BuildShadersAndInputLayout()
 	mShaders["treeSpriteVS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["treeSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "GS", "gs_5_0");
 	mShaders["treeSpritePS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");
+
+	mShaders["compositeVS"] = d3dUtil::CompileShader(L"Shaders\\Composite.hlsl", nullptr, "VS", "vs_5_0");
+	mShaders["compositePS"] = d3dUtil::CompileShader(L"Shaders\\Composite.hlsl", nullptr, "PS", "ps_5_0");
+	mShaders["sobelCS"] = d3dUtil::CompileShader(L"Shaders\\Sobel.hlsl", nullptr, "SobelCS", "cs_5_0");
 
 	mStdInputLayout =
 	{
@@ -879,6 +964,30 @@ void d3dApp::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&wavesRenderPSO, IID_PPV_ARGS(&mPSOs["wavesRender"])));
 
 	//
+	// PSO for compositing post process
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC compositePSO = opaquePsoDesc;
+	compositePSO.pRootSignature = mPostProcessRootSignature.Get();
+
+	// Disable depth test.
+	compositePSO.DepthStencilState.DepthEnable = false;
+	compositePSO.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	compositePSO.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	compositePSO.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["compositeVS"]->GetBufferPointer()),
+		mShaders["compositeVS"]->GetBufferSize()
+	};
+	compositePSO.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["compositePS"]->GetBufferPointer()),
+		mShaders["compositePS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&compositePSO, IID_PPV_ARGS(&mPSOs["composite"])));
+
+
+	//
 	// PSO for disturbing waves
 	//
 	D3D12_COMPUTE_PIPELINE_STATE_DESC wavesDisturbPSO = {};
@@ -904,14 +1013,19 @@ void d3dApp::BuildPSOs()
 	wavesUpdatePSO.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	ThrowIfFailed(md3dDevice->CreateComputePipelineState(&wavesUpdatePSO, IID_PPV_ARGS(&mPSOs["wavesUpdate"])));
 
-
 	//
-	// PSO for opaque wireframe objects.
+	// PSO for sobel
 	//
+	D3D12_COMPUTE_PIPELINE_STATE_DESC sobelPSO = {};
+	sobelPSO.pRootSignature = mPostProcessRootSignature.Get();
+	sobelPSO.CS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["sobelCS"]->GetBufferPointer()),
+		mShaders["sobelCS"]->GetBufferSize()
+	};
+	sobelPSO.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+	ThrowIfFailed(md3dDevice->CreateComputePipelineState(&sobelPSO, IID_PPV_ARGS(&mPSOs["sobel"])));
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
-	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaqueWireframePsoDesc, IID_PPV_ARGS(&mPSOs["opaque_wireframe"])));
 }
 
 void d3dApp::BuildFrameResources()
@@ -1059,6 +1173,16 @@ void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vect
 
 		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
+}
+
+void d3dApp::DrawFullscreenQuad(ID3D12GraphicsCommandList* cmdList)
+{
+	// Null-out IA stage since we build the vertex off the SV_VertexID in the shader.
+	cmdList->IASetVertexBuffers(0, 1, nullptr);
+	cmdList->IASetIndexBuffer(nullptr);
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	cmdList->DrawInstanced(6, 1, 0, 0);
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> d3dApp::GetStaticSamplers()
@@ -1255,6 +1379,16 @@ void d3dApp::OnResize()
 	// The window resized, so update the aspect ratio and recompute the projection matrix.
 	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
 	XMStoreFloat4x4(&mProj, P);
+
+	if (mSobelFilter != nullptr)
+	{
+		mSobelFilter->OnResize(mClientWidth, mClientHeight);
+	}
+
+	if (mOffscreenRT != nullptr)
+	{
+		mOffscreenRT->OnResize(mClientWidth, mClientHeight);
+	}
 }
 
 int d3dApp::Run()
@@ -1321,14 +1455,7 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
 	// Reusing the command list reuses memory.
-	if (mIsWireframe)
-	{
-		ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque_wireframe"].Get()));
-	}
-	else
-	{
-		ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
-	}
+	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
 
 	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
@@ -1341,18 +1468,18 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
 
 	// Indicate a state transition on the resource usage.
-	CD3DX12_RESOURCE_BARRIER resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	CD3DX12_RESOURCE_BARRIER resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mOffscreenRT->Resource(),
+		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	mCommandList->ResourceBarrier(1, &resBarr);
 
 	// Clear the back buffer and depth buffer.
-	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), (float*)&mMainPassCB.FogColor, 0, nullptr);
+	mCommandList->ClearRenderTargetView(mOffscreenRT->Rtv(), (float*)&mMainPassCB.FogColor, 0, nullptr);
 	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
-	D3D12_CPU_DESCRIPTOR_HANDLE backBuff = CurrentBackBufferView();
+	D3D12_CPU_DESCRIPTOR_HANDLE offScreenRt = mOffscreenRT->Rtv();
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvView = DepthStencilView();
-	mCommandList->OMSetRenderTargets(1, &backBuff, true, &dsvView);
+	mCommandList->OMSetRenderTargets(1, &offScreenRt, true, &dsvView);
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
@@ -1376,8 +1503,35 @@ void d3dApp::Draw(const GameTimer& gt)
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::GpuWaves]);
 
 	// Indicate a state transition on the resource usage.
+	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mOffscreenRT->Resource(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
+	mCommandList->ResourceBarrier(1, &resBarr);
+
+	mSobelFilter->Execute(mCommandList.Get(), mPostProcessRootSignature.Get(),
+		mPSOs["sobel"].Get(), mOffscreenRT->Srv());
+
+	//
+	// Switching back to back buffer rendering.
+	//
+
+	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	// Indicate a state transition on the resource usage.
+	mCommandList->ResourceBarrier(1, &resBarr);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE backBuffview = CurrentBackBufferView();
+	// Specify the buffers we are going to render to.
+	mCommandList->OMSetRenderTargets(1, &backBuffview, true, &dsvView);
+
+	mCommandList->SetGraphicsRootSignature(mPostProcessRootSignature.Get());
+	mCommandList->SetPipelineState(mPSOs["composite"].Get());
+	mCommandList->SetGraphicsRootDescriptorTable(0, mOffscreenRT->Srv());
+	mCommandList->SetGraphicsRootDescriptorTable(1, mSobelFilter->OutputSrv());
+	DrawFullscreenQuad(mCommandList.Get());
+
 	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	// Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &resBarr);
 
 	// Done recording commands.

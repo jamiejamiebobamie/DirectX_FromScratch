@@ -12,6 +12,8 @@
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
 #include "GpuWaves.h"
+#include "SobelFilter.h"
+#include "RenderTarget.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -115,6 +117,7 @@ private:
 	void LoadTextures();
 	void BuildRootSignature();
 	void BuildWavesRootSignature();
+	void BuildPostProcessRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
 	void BuildLandGeometry();
@@ -142,6 +145,7 @@ private:
 
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 	ComPtr<ID3D12RootSignature> mWavesRootSignature = nullptr;
+	ComPtr<ID3D12RootSignature> mPostProcessRootSignature = nullptr;
 
 	ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
 
@@ -159,6 +163,10 @@ private:
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
 	std::unique_ptr<GpuWaves> mWaves;
+
+	std::unique_ptr<RenderTarget> mOffscreenRT = nullptr;
+
+	std::unique_ptr<SobelFilter> mSobelFilter = nullptr;
 
 	PassConstants mMainPassCB;
 
@@ -180,6 +188,7 @@ protected:
 	 void OnResize();
 	 void Update(const GameTimer& gt);
 	 void Draw(const GameTimer& gt);
+	 void DrawFullscreenQuad(ID3D12GraphicsCommandList* cmdList);
 
 	 void OnMouseDown(WPARAM btnState, int x, int y);
 	 void OnMouseUp(WPARAM btnState, int x, int y);

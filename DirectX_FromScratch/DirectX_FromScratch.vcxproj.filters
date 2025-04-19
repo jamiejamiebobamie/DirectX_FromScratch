@@ -87,6 +87,12 @@
     <ClInclude Include="GpuWaves.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SobelFilter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderTarget.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectX_FromScratch.cpp">
@@ -116,6 +122,12 @@
     <ClCompile Include="GpuWaves.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SobelFilter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderTarget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DirectX_FromScratch.rc">
@@ -133,5 +145,7 @@
   <ItemGroup>
     <FxCompile Include="Shaders\DisturbWavesCS.hlsl" />
     <FxCompile Include="Shaders\UpdateWavesCS.hlsl" />
+    <FxCompile Include="Shaders\Sobel.hlsl" />
+    <FxCompile Include="Shaders\Composite.hlsl" />
   </ItemGroup>
 </Project>
