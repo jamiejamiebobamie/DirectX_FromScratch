@@ -220,5 +220,9 @@ protected:
 	ComPtr<ID3D12Resource> mInputUploadBufferB = nullptr;
 	ComPtr<ID3D12Resource> mOutputBuffer = nullptr;
 	ComPtr<ID3D12Resource> mReadBackBuffer = nullptr;
+
+	std::unique_ptr<UploadBuffer<XMFLOAT3>> mUploadBuffer = nullptr;
+
+
 };
 
