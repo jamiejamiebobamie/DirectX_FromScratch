@@ -11,7 +11,6 @@
 #include "UploadBuffer.h"
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
-#include "GpuWaves.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -28,19 +27,18 @@ enum class RenderLayer : int
 	Opaque = 0,
 	Transparent,
 	AlphaTested,
-	AlphaTestedTreeSprites,
-	GpuWaves,
 	Count
+};
+
+struct Data
+{
+	XMFLOAT3 v1;
+	XMFLOAT2 v2;
 };
 
 extern const int gNumFrameResources;
 
-struct TreeSpriteVertex
-{
-	XMFLOAT3 Pos;
-	XMFLOAT2 Size;
-	XMFLOAT3 Slope;
-};
+extern const int NumDataElements;
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
@@ -55,10 +53,6 @@ struct RenderItem
 
 	XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
 
-	// Used for GPU waves render items.
-	DirectX::XMFLOAT2 DisplacementMapTexelSize = { 1.0f, 1.0f };
-	float GridSpatialStep = 1.0f;
-
 	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
 	// Because we have an object cbuffer for each FrameResource, we have to apply the
 	// update to each FrameResource.  Thus, when we modify object data we should set 
@@ -72,7 +66,7 @@ struct RenderItem
 	MeshGeometry* Geo = nullptr;
 
 	// Primitive topology.
-	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
 	// DrawIndexedInstanced parameters.
 	UINT IndexCount = 0;
@@ -105,33 +99,16 @@ public:
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
-	void UpdateCamera(const GameTimer& gt);
-	void AnimateMaterials(const GameTimer& gt);
-	void UpdateObjectCBs(const GameTimer& gt);
-	void UpdateMaterialCBs(const GameTimer& gt);
-	void UpdateMainPassCB(const GameTimer& gt);
-	void UpdateWavesGPU(const GameTimer& gt);
 
-	void LoadTextures();
+	void DoComputeWork();
+	void BuildBuffers();
 	void BuildRootSignature();
-	void BuildWavesRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildLandGeometry();
-	void BuildWavesGeometry();
-	void BuildBoxGeometry();
-	void BuildTreeSpritesGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
-	void BuildMaterials();
-	void BuildRenderItems();
-	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
-
-	float GetHillsHeight(float x, float z)const;
-	XMFLOAT3 GetHillsNormal(float x, float z)const;
-	XMFLOAT3 GetHillsSlope(float x, float z)const;
 
 private:
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
@@ -141,28 +118,17 @@ private:
 	UINT mCbvSrvDescriptorSize = 0;
 
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
-	ComPtr<ID3D12RootSignature> mWavesRootSignature = nullptr;
 
 	ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
 
-	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
-	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
-	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
 	std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mStdInputLayout;
-	std::vector<D3D12_INPUT_ELEMENT_DESC> mTreeSpriteInputLayout;
-
-	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
-	std::unique_ptr<GpuWaves> mWaves;
-
 	PassConstants mMainPassCB;
-
-	bool mIsWireframe = false;
 
 	XMFLOAT3 mEyePos = { 0.0f, 0.0f, 0.0f };
 	XMFLOAT4X4 mView = MathHelper::Identity4x4();
@@ -254,7 +220,11 @@ protected:
 	int mClientWidth = 800;
 	int mClientHeight = 600;
 
-	bool mIsEdited = false;
-
+	ComPtr<ID3D12Resource> mInputBufferA = nullptr;
+	ComPtr<ID3D12Resource> mInputUploadBufferA = nullptr;
+	ComPtr<ID3D12Resource> mInputBufferB = nullptr;
+	ComPtr<ID3D12Resource> mInputUploadBufferB = nullptr;
+	ComPtr<ID3D12Resource> mOutputBuffer = nullptr;
+	ComPtr<ID3D12Resource> mReadBackBuffer = nullptr;
 };
 
