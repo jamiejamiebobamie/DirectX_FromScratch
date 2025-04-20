@@ -30,12 +30,6 @@ enum class RenderLayer : int
 	Count
 };
 
-struct Data
-{
-	XMFLOAT3 v1;
-	XMFLOAT2 v2;
-};
-
 extern const int gNumFrameResources;
 
 extern const int NumDataElements;
@@ -222,8 +216,6 @@ protected:
 
 	ComPtr<ID3D12Resource> mInputBufferA = nullptr;
 	ComPtr<ID3D12Resource> mInputUploadBufferA = nullptr;
-	ComPtr<ID3D12Resource> mInputBufferB = nullptr;
-	ComPtr<ID3D12Resource> mInputUploadBufferB = nullptr;
 	ComPtr<ID3D12Resource> mOutputBuffer = nullptr;
 	ComPtr<ID3D12Resource> mReadBackBuffer = nullptr;
 };

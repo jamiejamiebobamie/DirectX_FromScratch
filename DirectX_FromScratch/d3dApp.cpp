@@ -12,7 +12,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 
 const int gNumFrameResources = 3;
 
-const int NumDataElements = 32;
+const int NumDataElements = 64;
 
 LRESULT CALLBACK
 MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -278,15 +278,14 @@ void d3dApp::CreateRtvAndDsvDescriptorHeaps()
 void d3dApp::BuildRootSignature()
 {
 	// Root parameter can be a table, root descriptor or root constants.
-	CD3DX12_ROOT_PARAMETER slotRootParameter[3];
+	CD3DX12_ROOT_PARAMETER slotRootParameter[2];
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsShaderResourceView(0);
-	slotRootParameter[1].InitAsShaderResourceView(1);
-	slotRootParameter[2].InitAsUnorderedAccessView(0);
+	slotRootParameter[1].InitAsUnorderedAccessView(0);
 
 	// A root signature is an array of root parameters.
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(3, slotRootParameter,
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(2, slotRootParameter,
 		0, nullptr,
 		D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
@@ -604,8 +603,7 @@ void d3dApp::DoComputeWork()
 	mCommandList->SetComputeRootSignature(mRootSignature.Get());
 
 	mCommandList->SetComputeRootShaderResourceView(0, mInputBufferA->GetGPUVirtualAddress());
-	mCommandList->SetComputeRootShaderResourceView(1, mInputBufferB->GetGPUVirtualAddress());
-	mCommandList->SetComputeRootUnorderedAccessView(2, mOutputBuffer->GetGPUVirtualAddress());
+	mCommandList->SetComputeRootUnorderedAccessView(1, mOutputBuffer->GetGPUVirtualAddress());
 
 	mCommandList->Dispatch(1, 1, 1);
 
@@ -633,15 +631,14 @@ void d3dApp::DoComputeWork()
 	FlushCommandQueue();
 
 	// Map the data so we can read it on CPU.
-	Data* mappedData = nullptr;
+	float* mappedData = nullptr;
 	ThrowIfFailed(mReadBackBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mappedData)));
 
 	std::ofstream fout("results.txt");
 
 	for (int i = 0; i < NumDataElements; ++i)
 	{
-		fout << "(" << mappedData[i].v1.x << ", " << mappedData[i].v1.y << ", " << mappedData[i].v1.z <<
-			", " << mappedData[i].v2.x << ", " << mappedData[i].v2.y << ")" << std::endl;
+		fout << i + 1 << ": " << "[" << mappedData[i] << "]" << std::endl;
 	}
 
 	mReadBackBuffer->Unmap(0, nullptr);
@@ -650,18 +647,23 @@ void d3dApp::DoComputeWork()
 void d3dApp::BuildBuffers()
 {
 	// Generate some data.
-	std::vector<Data> dataA(NumDataElements);
-	std::vector<Data> dataB(NumDataElements);
+	std::vector<XMFLOAT3> dataA(NumDataElements);
 	for (int i = 0; i < NumDataElements; ++i)
 	{
-		dataA[i].v1 = XMFLOAT3(i, i, i);
-		dataA[i].v2 = XMFLOAT2(i, 0);
+		float x = MathHelper::RandF(0, 1);
+		float y = MathHelper::RandF(0, 1);
+		float z = MathHelper::RandF(0, 1);
 
-		dataB[i].v1 = XMFLOAT3(-i, i, 0.0f);
-		dataB[i].v2 = XMFLOAT2(0, -i);
+		float mag = MathHelper::RandF(1, 11); // not inclusive of 10, so go to 11
+		mag = MathHelper::Clamp(mag, 1.0f, 10.0f); // and clamp to 10
+
+		XMFLOAT3 randUnitVec;
+		XMStoreFloat3(&randUnitVec, XMVector3Normalize(XMVectorSet(x, y, z, 1.0f)) * mag);
+
+		dataA[i] = randUnitVec;
 	}
 
-	UINT64 byteSize = dataA.size() * sizeof(Data);
+	UINT64 byteSize = dataA.size() * sizeof(XMFLOAT3);
 
 	// Create some buffers to be used as SRVs.
 	mInputBufferA = d3dUtil::CreateDefaultBuffer(
@@ -671,15 +673,9 @@ void d3dApp::BuildBuffers()
 		byteSize,
 		mInputUploadBufferA);
 
-	mInputBufferB = d3dUtil::CreateDefaultBuffer(
-		md3dDevice.Get(),
-		mCommandList.Get(),
-		dataB.data(),
-		byteSize,
-		mInputUploadBufferB);
+	byteSize = dataA.size() * sizeof(float);
 
 	CD3DX12_HEAP_PROPERTIES heapDesc = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-
 	CD3DX12_RESOURCE_DESC buffDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	// Create the buffer that will be a UAV.
