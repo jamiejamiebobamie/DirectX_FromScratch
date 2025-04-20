@@ -1,11 +1,15 @@
 
 
-StructuredBuffer<float3> gInputA : register(t0);
-RWStructuredBuffer<float> gOutput : register(u0);
+ConsumeStructuredBuffer<float3> gInputA : register(u0);
+AppendStructuredBuffer<float> gOutput : register(u1);
 
 
 [numthreads(64, 1, 1)]
-void CS(int3 dtid : SV_DispatchThreadID)
+void CS()
 {
-    gOutput[dtid.x] = length(gInputA[dtid.x]);
+    //float3 test = float3(1.0f, 0.0f, 0.0f);
+    //gOutput.Append(length(test));
+    //gInputA.Consume();
+    gOutput.Append(length(gInputA.Consume()));
+
 }

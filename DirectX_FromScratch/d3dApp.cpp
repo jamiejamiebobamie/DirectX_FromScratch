@@ -281,8 +281,8 @@ void d3dApp::BuildRootSignature()
 	CD3DX12_ROOT_PARAMETER slotRootParameter[2];
 
 	// Perfomance TIP: Order from most frequent to least frequent.
-	slotRootParameter[0].InitAsShaderResourceView(0);
-	slotRootParameter[1].InitAsUnorderedAccessView(0);
+	slotRootParameter[0].InitAsUnorderedAccessView(0);
+	slotRootParameter[1].InitAsUnorderedAccessView(1);
 
 	// A root signature is an array of root parameters.
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(2, slotRootParameter,
@@ -310,7 +310,7 @@ void d3dApp::BuildRootSignature()
 
 void d3dApp::BuildDescriptorHeaps()
 {
-
+	
 }
 
 void d3dApp::BuildShadersAndInputLayout()
@@ -542,7 +542,6 @@ void d3dApp::Update(const GameTimer& gt)
 
 void d3dApp::Draw(const GameTimer& gt)
 {
-
 }
 
 void d3dApp::OnMouseDown(WPARAM btnState, int x, int y)
@@ -602,12 +601,36 @@ void d3dApp::DoComputeWork()
 
 	mCommandList->SetComputeRootSignature(mRootSignature.Get());
 
-	mCommandList->SetComputeRootShaderResourceView(0, mInputBufferA->GetGPUVirtualAddress());
+
+
+
+	CD3DX12_RESOURCE_BARRIER resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mInputBufferA.Get(),
+		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+	// Schedule to copy the data to the default buffer to the readback buffer.
+	mCommandList->ResourceBarrier(1, &resBarr);
+
+	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mInputBufferB.Get(),
+		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+
+	// Schedule to copy the data to the default buffer to the readback buffer.
+	mCommandList->ResourceBarrier(1, &resBarr);
+
+	mCommandList->CopyResource(mInputBufferB.Get(), mInputBufferA.Get());
+
+	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mInputBufferB.Get(),
+		D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+
+	// Schedule to copy the data to the default buffer to the readback buffer.
+	mCommandList->ResourceBarrier(1, &resBarr);
+
+
+	mCommandList->SetComputeRootUnorderedAccessView(0, mInputBufferB->GetGPUVirtualAddress());
 	mCommandList->SetComputeRootUnorderedAccessView(1, mOutputBuffer->GetGPUVirtualAddress());
 
 	mCommandList->Dispatch(1, 1, 1);
 
-	CD3DX12_RESOURCE_BARRIER resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mOutputBuffer.Get(),
+	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mOutputBuffer.Get(),
 		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
 	// Schedule to copy the data to the default buffer to the readback buffer.
@@ -664,6 +687,8 @@ void d3dApp::BuildBuffers()
 	}
 
 	UINT64 byteSize = dataA.size() * sizeof(XMFLOAT3);
+	CD3DX12_HEAP_PROPERTIES heapDesc = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	CD3DX12_RESOURCE_DESC buffDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	// Create some buffers to be used as SRVs.
 	mInputBufferA = d3dUtil::CreateDefaultBuffer(
@@ -673,10 +698,54 @@ void d3dApp::BuildBuffers()
 		byteSize,
 		mInputUploadBufferA);
 
-	byteSize = dataA.size() * sizeof(float);
+	// Create some buffers to be used as SRVs.
+	//mInputBufferB = d3dUtil::CreateDefaultBuffer(
+	//	md3dDevice.Get(),
+	//	mCommandList.Get(),
+	//	nullptr,
+	//	byteSize,
+	//	mInputUploadBufferB);
 
-	CD3DX12_HEAP_PROPERTIES heapDesc = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-	CD3DX12_RESOURCE_DESC buffDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	ThrowIfFailed(md3dDevice->CreateCommittedResource(
+		&heapDesc,
+		D3D12_HEAP_FLAG_NONE,
+		&buffDesc,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		nullptr,
+		IID_PPV_ARGS(&mInputBufferB)));
+
+	//// Create a UAV descriptor for the buffer
+	//D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	//uavDesc.Format = DXGI_FORMAT_UNKNOWN; // For structured buffers
+	//uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	//uavDesc.Buffer.FirstElement = 0;
+	//uavDesc.Buffer.NumElements = data.size();
+	//uavDesc.Buffer.StructureByteStride = sizeof(float4);
+	//uavDesc.Buffer.CounterOffsetInBytes = 0;
+
+	//device->CreateUnorderedAccessView(mInputBufferB.Get(), nullptr, &uavDesc, uavHandle);
+
+	//// Upload data to the ConsumeBuffer
+	//ComPtr<ID3D12Resource> stagingBuffer;
+	//device->CreateCommittedResource(
+	//	&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+	//	D3D12_HEAP_FLAG_NONE,
+	//	&desc,
+	//	D3D12_RESOURCE_STATE_GENERIC_READ,
+	//	nullptr,
+	//	IID_PPV_ARGS(&stagingBuffer)
+	//);
+
+	//void* pData = nullptr;
+	//stagingBuffer->Map(0, nullptr, &pData);
+	//memcpy(pData, data.data(), sizeof(float4) * data.size());
+	//stagingBuffer->Unmap(0, nullptr);
+
+	// Copy staging buffer to the actual UAV buffer
+	//commandList->CopyResource(consumeBuffer.Get(), stagingBuffer.Get());
+
+	byteSize = dataA.size() * sizeof(float);
+	buffDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	// Create the buffer that will be a UAV.
 	ThrowIfFailed(md3dDevice->CreateCommittedResource(
