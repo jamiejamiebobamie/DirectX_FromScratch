@@ -488,6 +488,7 @@ void d3dApp::BuildPSOs()
 	};
 	opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	opaquePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.SampleMask = UINT_MAX;
@@ -535,7 +536,7 @@ void d3dApp::BuildRenderItems()
 {
 	auto quadPatchRitem = std::make_unique<RenderItem>();
 	quadPatchRitem->World = MathHelper::Identity4x4();
-	XMStoreFloat4x4(&quadPatchRitem->TexTransform, XMMatrixScaling(10.0f, 10.0f, 10.0f)); //MathHelper::Identity4x4();
+	XMStoreFloat4x4(&quadPatchRitem->TexTransform, XMMatrixScaling(10.0f, 10.0f, 10.0f));
 	quadPatchRitem->ObjCBIndex = 0;
 	quadPatchRitem->Mat = mMaterials["whiteMat"].get();
 	quadPatchRitem->Geo = mGeometries["quadpatchGeo"].get();
@@ -545,7 +546,17 @@ void d3dApp::BuildRenderItems()
 	quadPatchRitem->BaseVertexLocation = quadPatchRitem->Geo->DrawArgs["quadpatch"].BaseVertexLocation;
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(quadPatchRitem.get());
 
+	auto quadPatch2Ritem = std::make_unique<RenderItem>();
+	*quadPatch2Ritem = *quadPatchRitem;
+	
+
+	XMStoreFloat4x4(&quadPatchRitem->World, XMMatrixReflect(XMVectorSet(-1.0f, 0.0f, -1.0f, 1.0f)) * XMMatrixRotationY(MathHelper::Pi) * XMMatrixTranslation(0.5f, -0.1f, 0.5f));// );
+	quadPatchRitem->ObjCBIndex = 1;
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(quadPatch2Ritem.get());
+
 	mAllRitems.push_back(std::move(quadPatchRitem));
+	mAllRitems.push_back(std::move(quadPatch2Ritem));
+
 }
 
 void d3dApp::OnResize()
