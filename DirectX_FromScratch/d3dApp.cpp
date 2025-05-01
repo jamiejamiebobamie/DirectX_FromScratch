@@ -90,7 +90,7 @@ bool d3dApp::Initialize()
 	BuildRootSignature();
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
-	BuildQuadPatchGeometry();
+	BuildIcoSphereGeometry();
 	BuildMaterials();
 	BuildRenderItems();
 	BuildFrameResources();
@@ -411,23 +411,28 @@ void d3dApp::BuildShadersAndInputLayout()
 	};
 }
 
-void d3dApp::BuildQuadPatchGeometry()
+void d3dApp::BuildIcoSphereGeometry()
 {
-	std::array<XMFLOAT3, 4> vertices =
-	{
-		XMFLOAT3(-80.0f, 0.0f, +80.0f),
-		XMFLOAT3(+80.0f, 0.0f, +80.0f),
-		XMFLOAT3(-80.0f, 0.0f, -80.0f),
-		XMFLOAT3(+80.0f, 0.0f, -80.0f)
-	};
+	GeometryGenerator geomGen;
 
-	std::array<std::int16_t, 4> indices = { 0, 1, 2, 3 };
+	GeometryGenerator::MeshData icoSphere = geomGen.CreateGeosphere(5.0f, 0);
 
+	std::vector<XMFLOAT3> vertices(icoSphere.Vertices.size());
+	std::vector<std::int16_t> indices(icoSphere.Indices32.size());
+
+	for (int i = 0; i < vertices.size(); i++) {
+		vertices[i] = icoSphere.Vertices[i].Position;
+	}
+
+	for (int i = 0; i < indices.size(); i++) {
+		indices[i] = (std::int16_t)icoSphere.Indices32[i];
+	}
+	
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
 	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "quadpatchGeo";
+	geo->Name = "icoSphere";
 
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
 	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
@@ -446,12 +451,12 @@ void d3dApp::BuildQuadPatchGeometry()
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
 
-	SubmeshGeometry quadSubmesh;
-	quadSubmesh.IndexCount = 4;
-	quadSubmesh.StartIndexLocation = 0;
-	quadSubmesh.BaseVertexLocation = 0;
+	SubmeshGeometry icoSubmesh;
+	icoSubmesh.IndexCount = indices.size();
+	icoSubmesh.StartIndexLocation = 0;
+	icoSubmesh.BaseVertexLocation = 0;
 
-	geo->DrawArgs["quadpatch"] = quadSubmesh;
+	geo->DrawArgs["icoSphere"] = icoSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -488,6 +493,8 @@ void d3dApp::BuildPSOs()
 	};
 	opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	//opaquePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.SampleMask = UINT_MAX;
@@ -523,7 +530,7 @@ void d3dApp::BuildMaterials()
 	auto whiteMat = std::make_unique<Material>();
 	whiteMat->Name = "quadMat";
 	whiteMat->MatCBIndex = 0;
-	whiteMat->DiffuseSrvHeapIndex = 1;
+	whiteMat->DiffuseSrvHeapIndex = 2;
 	whiteMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	whiteMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	whiteMat->Roughness = 0.5f;
@@ -533,19 +540,19 @@ void d3dApp::BuildMaterials()
 
 void d3dApp::BuildRenderItems()
 {
-	auto quadPatchRitem = std::make_unique<RenderItem>();
-	quadPatchRitem->World = MathHelper::Identity4x4();
-	XMStoreFloat4x4(&quadPatchRitem->TexTransform, XMMatrixScaling(10.0f, 10.0f, 10.0f)); //MathHelper::Identity4x4();
-	quadPatchRitem->ObjCBIndex = 0;
-	quadPatchRitem->Mat = mMaterials["whiteMat"].get();
-	quadPatchRitem->Geo = mGeometries["quadpatchGeo"].get();
-	quadPatchRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
-	quadPatchRitem->IndexCount = quadPatchRitem->Geo->DrawArgs["quadpatch"].IndexCount;
-	quadPatchRitem->StartIndexLocation = quadPatchRitem->Geo->DrawArgs["quadpatch"].StartIndexLocation;
-	quadPatchRitem->BaseVertexLocation = quadPatchRitem->Geo->DrawArgs["quadpatch"].BaseVertexLocation;
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(quadPatchRitem.get());
+	auto icoSphereRitem = std::make_unique<RenderItem>();
+	icoSphereRitem->World = MathHelper::Identity4x4();
+	XMStoreFloat4x4(&icoSphereRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	icoSphereRitem->ObjCBIndex = 0;
+	icoSphereRitem->Mat = mMaterials["whiteMat"].get();
+	icoSphereRitem->Geo = mGeometries["icoSphere"].get();
+	icoSphereRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
+	icoSphereRitem->IndexCount = icoSphereRitem->Geo->DrawArgs["icoSphere"].IndexCount;
+	icoSphereRitem->StartIndexLocation = icoSphereRitem->Geo->DrawArgs["icoSphere"].StartIndexLocation;
+	icoSphereRitem->BaseVertexLocation = icoSphereRitem->Geo->DrawArgs["icoSphere"].BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(icoSphereRitem.get());
 
-	mAllRitems.push_back(std::move(quadPatchRitem));
+	mAllRitems.push_back(std::move(icoSphereRitem));
 }
 
 void d3dApp::OnResize()

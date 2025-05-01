@@ -98,7 +98,7 @@ private:
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildQuadPatchGeometry();
+	void BuildIcoSphereGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();

@@ -83,15 +83,17 @@ VertexOut VS(VertexIn vin)
  
 struct PatchTess
 {
-    float EdgeTess[4] : SV_TessFactor;
-    float InsideTess[2] : SV_InsideTessFactor;
+    float EdgeTess[3] : SV_TessFactor;
+    float InsideTess[1] : SV_InsideTessFactor;
 };
 
-PatchTess ConstantHS(InputPatch<VertexOut, 4> patch, uint patchID : SV_PrimitiveID)
+PatchTess ConstantHS(InputPatch<VertexOut, 3> patch, uint patchID : SV_PrimitiveID)
 {
     PatchTess pt;
 	
-    float3 centerL = 0.25f * (patch[0].PosL + patch[1].PosL + patch[2].PosL + patch[3].PosL);
+    //float3 centerL = 0.25f * (patch[0].PosL + patch[1].PosL + patch[2].PosL + patch[3].PosL);
+    float3 centerL = (patch[0].PosL + patch[1].PosL + patch[2].PosL) / 3.0f;
+    
     float3 centerW = mul(float4(centerL, 1.0f), gWorld).xyz;
 	
     float d = distance(centerW, gEyePosW);
@@ -100,19 +102,19 @@ PatchTess ConstantHS(InputPatch<VertexOut, 4> patch, uint patchID : SV_Primitive
 	// the tessellation is 0 if d >= d1 and 64 if d <= d0.  The interval
 	// [d0, d1] defines the range we tessellate in.
 	
-    const float d0 = 100.0f;
-    const float d1 = 400.0f;
-    float tess = lerp(2.0f, 64.0f, saturate((d1 - d) / (d1 - d0)));
+    const float d0 = 10.0f;
+    const float d1 = 30.0f;
+    float tess = lerp(1.0f, 64.0f, saturate((d1 - d) / (d1 - d0)));
 
 	// Uniformly tessellate the patch.
 
     pt.EdgeTess[0] = tess;
     pt.EdgeTess[1] = tess;
     pt.EdgeTess[2] = tess;
-    pt.EdgeTess[3] = tess;
+    //pt.EdgeTess[3] = tess;
 	
     pt.InsideTess[0] = tess;
-    pt.InsideTess[1] = tess;
+    //pt.InsideTess[1] = tess;
 	
     return pt;
 }
@@ -122,13 +124,13 @@ struct HullOut
     float3 PosL : POSITION;
 };
 
-[domain("quad")]
-[partitioning("fractional_even")]
+[domain("tri")]
+[partitioning("integer")]
 [outputtopology("triangle_cw")]
-[outputcontrolpoints(4)]
+[outputcontrolpoints(3)]
 [patchconstantfunc("ConstantHS")]
 [maxtessfactor(64.0f)]
-HullOut HS(InputPatch<VertexOut, 4> p,
+HullOut HS(InputPatch<VertexOut, 3> p,
            uint i : SV_OutputControlPointID,
            uint patchId : SV_PrimitiveID)
 {
@@ -147,25 +149,31 @@ struct DomainOut
 
 // The domain shader is called for every vertex created by the tessellator.  
 // It is like the vertex shader after tessellation.
-[domain("quad")]
+[domain("tri")]
 DomainOut DS(PatchTess patchTess,
-             float2 uv : SV_DomainLocation,
-             const OutputPatch<HullOut, 4> quad)
+             float3 uvw : SV_DomainLocation,
+             const OutputPatch<HullOut, 3> tri)
 {
     DomainOut dout;
+    
+    float3 p = tri[0].PosL * uvw.x + tri[1].PosL * uvw.y + tri[2].PosL * uvw.z;
 	
 	// Bilinear interpolation.
-    float3 v1 = lerp(quad[0].PosL, quad[1].PosL, uv.x);
-    float3 v2 = lerp(quad[2].PosL, quad[3].PosL, uv.x);
-    float3 p = lerp(v1, v2, uv.y);
+//    float3 v1 = lerp(quad[0].PosL, quad[1].PosL, uv.x);
+//    float3 v2 = lerp(quad[2].PosL, quad[3].PosL, uv.x);
+//    float3 p = lerp(v1, v2, uv.y);
 	
 	// Displacement mapping
-    p.y = 0.3f * (p.z * sin(0.1f * p.x) + p.x * cos(0.1f * p.z));
+    //p.y = 0.3f * (p.z * sin(0.1f * p.x) + p.x * cos(0.1f * p.z));
+    
+    float3 _p = normalize(p);
+    
+    p = _p * 5.0f;
 	
     float4 posW = mul(float4(p, 1.0f), gWorld);
     dout.PosH = mul(posW, gViewProj);
 	
-    float4 texC = mul(float4(uv, 0.0f, 1.0f), gTexTransform);
+    float4 texC = mul(float4(uvw.xy, 0.0f, 1.0f), gTexTransform);
     dout.TexC = mul(texC, gMatTransform).xy;
 	
     return dout;
