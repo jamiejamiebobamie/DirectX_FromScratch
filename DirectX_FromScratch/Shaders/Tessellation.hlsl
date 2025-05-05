@@ -91,28 +91,30 @@ PatchTess ConstantHS(InputPatch<VertexOut, 4> patch, uint patchID : SV_Primitive
 {
     PatchTess pt;
 	
-    float3 centerL = 0.25f * (patch[0].PosL + patch[1].PosL + patch[2].PosL + patch[3].PosL);
-    float3 centerW = mul(float4(centerL, 1.0f), gWorld).xyz;
+//    float3 centerL = 0.25f * (patch[0].PosL + patch[1].PosL + patch[2].PosL + patch[3].PosL);
+//    float3 centerW = mul(float4(centerL, 1.0f), gWorld).xyz;
 	
-    float d = distance(centerW, gEyePosW);
+//    float d = distance(centerW, gEyePosW);
 
 	// Tessellate the patch based on distance from the eye such that
 	// the tessellation is 0 if d >= d1 and 64 if d <= d0.  The interval
 	// [d0, d1] defines the range we tessellate in.
 	
-    const float d0 = 100.0f;
-    const float d1 = 400.0f;
-    float tess = lerp(2.0f, 64.0f, saturate((d1 - d) / (d1 - d0)));
+//    const float d0 = 100.0f;
+//    const float d1 = 400.0f;
+//    float tess = lerp(2.0f, 64.0f, saturate((d1 - d) / (d1 - d0)));
 
 	// Uniformly tessellate the patch.
+    
+    
 
-    pt.EdgeTess[0] = tess;
-    pt.EdgeTess[1] = tess;
-    pt.EdgeTess[2] = tess;
-    pt.EdgeTess[3] = tess;
+    pt.EdgeTess[0] = 6.0f;
+    pt.EdgeTess[1] = 6.0f;
+    pt.EdgeTess[2] = 6.0f;
+    pt.EdgeTess[3] = 6.0f;
 	
-    pt.InsideTess[0] = tess;
-    pt.InsideTess[1] = tess;
+    pt.InsideTess[0] = 6.0f;
+    pt.InsideTess[1] = 6.0f;
 	
     return pt;
 }
@@ -160,7 +162,7 @@ DomainOut DS(PatchTess patchTess,
     float3 p = lerp(v1, v2, uv.y);
 	
 	// Displacement mapping
-    p.y = 0.3f * (p.z * sin(0.1f * p.x) + p.x * cos(0.1f * p.z));
+//    p.y = 0.3f * (p.z * sin(0.1f * p.x) + p.x * cos(0.1f * p.z));
 	
     float4 posW = mul(float4(p, 1.0f), gWorld);
     dout.PosH = mul(posW, gViewProj);
