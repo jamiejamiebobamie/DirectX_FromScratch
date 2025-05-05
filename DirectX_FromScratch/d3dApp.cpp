@@ -413,39 +413,29 @@ void d3dApp::BuildShadersAndInputLayout()
 
 void d3dApp::BuildQuadPatchGeometry()
 {
-	std::array<XMFLOAT3, 16> vertices =
+	std::array<XMFLOAT3, 9> vertices =
 	{
 		// Row 0
 		XMFLOAT3(-10.0f, -10.0f, +15.0f), // bottom corner
 		XMFLOAT3(-5.0f,  0.0f, +15.0f),
-		XMFLOAT3(+5.0f,  0.0f, +15.0f),
 		XMFLOAT3(+10.0f, 0.0f, +15.0f), // left corner
-
-		// Row 1
-		XMFLOAT3(-15.0f, 0.0f, +5.0f),
-		XMFLOAT3(-5.0f,  0.0f, +5.0f),
-		XMFLOAT3(+5.0f,  20.0f, +5.0f),
-		XMFLOAT3(+15.0f, 0.0f, +5.0f),
 
 		// Row 2
 		XMFLOAT3(-15.0f, 0.0f, -5.0f),
-		XMFLOAT3(-5.0f,  0.0f, -5.0f),
 		XMFLOAT3(+5.0f,  0.0f, -5.0f),
 		XMFLOAT3(+15.0f, 0.0f, -5.0f),
 
 		// Row 3
 		XMFLOAT3(-10.0f, 10.0f, -15.0f), // right corner
 		XMFLOAT3(-5.0f,  0.0f, -15.0f),
-		XMFLOAT3(+5.0f,  0.0f, -15.0f),
 		XMFLOAT3(+25.0f, 10.0f, -15.0f) // top corner
 	};
 
-	std::array<std::int16_t, 16> indices =
+	std::array<std::int16_t, 9> indices =
 	{
-		0, 1, 2, 3,
-		4, 5, 6, 7,
-		8, 9, 10, 11,
-		12, 13, 14, 15
+		0, 1, 2,
+		3, 4, 5,
+		6, 7, 8
 	};
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
