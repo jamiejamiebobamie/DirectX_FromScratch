@@ -416,10 +416,10 @@ void d3dApp::BuildQuadPatchGeometry()
 	std::array<XMFLOAT3, 16> vertices =
 	{
 		// Row 0
-		XMFLOAT3(-10.0f, -10.0f, +15.0f),
+		XMFLOAT3(-10.0f, -10.0f, +15.0f), // bottom corner
 		XMFLOAT3(-5.0f,  0.0f, +15.0f),
 		XMFLOAT3(+5.0f,  0.0f, +15.0f),
-		XMFLOAT3(+10.0f, 0.0f, +15.0f),
+		XMFLOAT3(+10.0f, 0.0f, +15.0f), // left corner
 
 		// Row 1
 		XMFLOAT3(-15.0f, 0.0f, +5.0f),
@@ -434,10 +434,10 @@ void d3dApp::BuildQuadPatchGeometry()
 		XMFLOAT3(+15.0f, 0.0f, -5.0f),
 
 		// Row 3
-		XMFLOAT3(-10.0f, 10.0f, -15.0f),
+		XMFLOAT3(-10.0f, 10.0f, -15.0f), // right corner
 		XMFLOAT3(-5.0f,  0.0f, -15.0f),
 		XMFLOAT3(+5.0f,  0.0f, -15.0f),
-		XMFLOAT3(+25.0f, 10.0f, -15.0f)
+		XMFLOAT3(+25.0f, 10.0f, -15.0f) // top corner
 	};
 
 	std::array<std::int16_t, 16> indices =
@@ -513,6 +513,7 @@ void d3dApp::BuildPSOs()
 	};
 	opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;//SOLID;
+	opaquePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.SampleMask = UINT_MAX;

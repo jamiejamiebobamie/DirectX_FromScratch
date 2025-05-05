@@ -95,6 +95,14 @@ PatchTess ConstantHS(InputPatch<VertexOut, 16> patch, uint patchID : SV_Primitiv
 	
 	// Uniform tessellation for this demo.
 
+//    pt.EdgeTess[0] = 1;
+//    pt.EdgeTess[1] = 1;
+//    pt.EdgeTess[2] = 1;
+//    pt.EdgeTess[3] = 1;
+	
+//    pt.InsideTess[0] = 1;
+//    pt.InsideTess[1] = 1;
+    
     pt.EdgeTess[0] = 25;
     pt.EdgeTess[1] = 25;
     pt.EdgeTess[2] = 25;
