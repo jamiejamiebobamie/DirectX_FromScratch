@@ -138,9 +138,9 @@ private:
 	XMFLOAT4X4 mView = MathHelper::Identity4x4();
 	XMFLOAT4X4 mProj = MathHelper::Identity4x4();
 
-	float mTheta = 1.5f * XM_PI;
-	float mPhi = 0.05f * XM_PI;
-	float mRadius = 35.0f;
+	float mTheta = 1.24f * XM_PI;
+	float mPhi = 0.42f * XM_PI;
+	float mRadius = 12.0f;
 
 	POINT mLastMousePos;
 
