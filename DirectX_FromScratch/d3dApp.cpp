@@ -91,6 +91,8 @@ bool d3dApp::Initialize()
 		mCommandList.Get(),
 		512, 512, 0.25f, 0.03f, 2.0f, 0.2f);
 
+	mCamera.SetPosition(0.0f, mCamera.GetPlayerHeight(), -15.0f);
+
 	LoadTextures();
 	BuildRootSignature();
 	BuildWavesRootSignature();
@@ -322,20 +324,21 @@ void d3dApp::LoadTextures()
 void d3dApp::BuildRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE texTable;
-	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 0);
 
 	CD3DX12_DESCRIPTOR_RANGE displacementMapTable;
-	displacementMapTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+	displacementMapTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2);
 
 	// Root parameter can be a table, root descriptor or root constants.
-	CD3DX12_ROOT_PARAMETER slotRootParameter[5];
+	CD3DX12_ROOT_PARAMETER slotRootParameter[6];
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[1].InitAsConstantBufferView(0);
 	slotRootParameter[2].InitAsConstantBufferView(1);
-	slotRootParameter[3].InitAsConstantBufferView(2);
+	slotRootParameter[3].InitAsShaderResourceView(0,1);
 	slotRootParameter[4].InitAsDescriptorTable(1, &displacementMapTable, D3D12_SHADER_VISIBILITY_ALL);
+
 
 	auto staticSamplers = GetStaticSamplers();
 
@@ -490,17 +493,17 @@ void d3dApp::BuildShadersAndInputLayout()
 	};
 
 
-	mShaders["wavesVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", waveDefines, "VS", "vs_5_0");
-	mShaders["wavesUpdateCS"] = d3dUtil::CompileShader(L"Shaders\\UpdateWavesCS.hlsl", nullptr, "UpdateWavesCS", "cs_5_0");
-	mShaders["wavesDisturbCS"] = d3dUtil::CompileShader(L"Shaders\\DisturbWavesCS.hlsl", nullptr, "DisturbWavesCS", "cs_5_0");
+	mShaders["wavesVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", waveDefines, "VS", "vs_5_1");
+	mShaders["wavesUpdateCS"] = d3dUtil::CompileShader(L"Shaders\\UpdateWavesCS.hlsl", nullptr, "UpdateWavesCS", "cs_5_1");
+	mShaders["wavesDisturbCS"] = d3dUtil::CompileShader(L"Shaders\\DisturbWavesCS.hlsl", nullptr, "DisturbWavesCS", "cs_5_1");
 
-	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_0");
-	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", defines, "PS", "ps_5_0");
-	mShaders["alphaTestedPS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", alphaTestDefines, "PS", "ps_5_0");
+	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", defines, "PS", "ps_5_1");
+	mShaders["alphaTestedPS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", alphaTestDefines, "PS", "ps_5_1");
 
-	mShaders["treeSpriteVS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "VS", "vs_5_0");
-	mShaders["treeSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "GS", "gs_5_0");
-	mShaders["treeSpritePS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");
+	mShaders["treeSpriteVS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["treeSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "GS", "gs_5_1");
+	mShaders["treeSpritePS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", alphaTestDefines, "PS", "ps_5_1");
 
 	mStdInputLayout =
 	{
@@ -620,7 +623,6 @@ void d3dApp::BuildWavesGeometry()
 {
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(160.0f, 160.0f, mWaves->RowCount(), mWaves->ColumnCount());
-
 	std::vector<Vertex> vertices(grid.Vertices.size());
 	for (size_t i = 0; i < grid.Vertices.size(); ++i)
 	{
@@ -628,39 +630,28 @@ void d3dApp::BuildWavesGeometry()
 		vertices[i].Normal = grid.Vertices[i].Normal;
 		vertices[i].TexC = grid.Vertices[i].TexC;
 	}
-
 	std::vector<std::uint32_t> indices = grid.Indices32;
-
 	UINT vbByteSize = mWaves->VertexCount() * sizeof(Vertex);
 	UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint32_t);
-
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "waterGeo";
-
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
 	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-
 	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
-
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
-
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
-
 	SubmeshGeometry submesh;
 	submesh.IndexCount = (UINT)indices.size();
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
-
 	geo->DrawArgs["grid"] = submesh;
-
 	mGeometries["waterGeo"] = std::move(geo);
 }
 
@@ -811,7 +802,6 @@ void d3dApp::BuildPSOs()
 	//
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = opaquePsoDesc;
-
 	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
 	transparencyBlendDesc.BlendEnable = true;
 	transparencyBlendDesc.LogicOpEnable = false;
@@ -823,14 +813,12 @@ void d3dApp::BuildPSOs()
 	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
 	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
 	transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&mPSOs["transparent"])));
 
 	//
 	// PSO for alpha tested objects
 	//
-
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaTestedPsoDesc = opaquePsoDesc;
 	alphaTestedPsoDesc.PS =
 	{
@@ -861,15 +849,13 @@ void d3dApp::BuildPSOs()
 	};
 	treeSpritePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 	treeSpritePsoDesc.InputLayout = { mTreeSpriteInputLayout.data(), (UINT)mTreeSpriteInputLayout.size() };
-	//treeSpritePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	treeSpritePsoDesc.BlendState.AlphaToCoverageEnable = true;
-
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&treeSpritePsoDesc, IID_PPV_ARGS(&mPSOs["treeSprites"])));
 
 
 	//
-// PSO for drawing waves
-//
+	// PSO for drawing waves
+	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC wavesRenderPSO = transparentPsoDesc;
 	wavesRenderPSO.VS =
 	{
@@ -909,9 +895,9 @@ void d3dApp::BuildPSOs()
 	// PSO for opaque wireframe objects.
 	//
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
-	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaqueWireframePsoDesc, IID_PPV_ARGS(&mPSOs["opaque_wireframe"])));
+	//D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
+	//opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	//ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaqueWireframePsoDesc, IID_PPV_ARGS(&mPSOs["opaque_wireframe"])));
 }
 
 void d3dApp::BuildFrameResources()
@@ -967,27 +953,28 @@ void d3dApp::BuildMaterials()
 
 void d3dApp::BuildRenderItems()
 {
+
+	int ObjCBIndex = 0;
+
 	auto wavesRitem = std::make_unique<RenderItem>();
-	//wavesRitem->World = MathHelper::Identity4x4();
 	XMStoreFloat4x4(&wavesRitem->World, XMMatrixScaling(1.3f, 1.0f, 1.3f));
 	XMStoreFloat4x4(&wavesRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
 	wavesRitem->DisplacementMapTexelSize.x = 1.0f / mWaves->ColumnCount();
 	wavesRitem->DisplacementMapTexelSize.y = 1.0f / mWaves->RowCount();
 	wavesRitem->GridSpatialStep = mWaves->SpatialStep();
-	wavesRitem->ObjCBIndex = 0;
+	wavesRitem->ObjCBIndex = ObjCBIndex++;
 	wavesRitem->Mat = mMaterials["water"].get();
 	wavesRitem->Geo = mGeometries["waterGeo"].get();
 	wavesRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	wavesRitem->IndexCount = wavesRitem->Geo->DrawArgs["grid"].IndexCount;
 	wavesRitem->StartIndexLocation = wavesRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	wavesRitem->BaseVertexLocation = wavesRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
-
 	mRitemLayer[(int)RenderLayer::GpuWaves].push_back(wavesRitem.get());
 
 	auto gridRitem = std::make_unique<RenderItem>();
 	gridRitem->World = MathHelper::Identity4x4();
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
-	gridRitem->ObjCBIndex = 1;
+	gridRitem->ObjCBIndex = ObjCBIndex++;
 	gridRitem->Mat = mMaterials["grass"].get();
 	gridRitem->Geo = mGeometries["landGeo"].get();
 	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -999,26 +986,24 @@ void d3dApp::BuildRenderItems()
 
 	auto boxRitem = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&boxRitem->World, XMMatrixTranslation(3.0f, 2.0f, -9.0f));
-	boxRitem->ObjCBIndex = 2;
+	boxRitem->ObjCBIndex = ObjCBIndex++;
 	boxRitem->Mat = mMaterials["wirefence"].get();
 	boxRitem->Geo = mGeometries["boxGeo"].get();
 	boxRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["box"].IndexCount;
 	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
-
 	mRitemLayer[(int)RenderLayer::AlphaTested].push_back(boxRitem.get());
 
 	auto treeSpritesRitem = std::make_unique<RenderItem>();
 	treeSpritesRitem->World = MathHelper::Identity4x4();
-	treeSpritesRitem->ObjCBIndex = 3;
+	treeSpritesRitem->ObjCBIndex = ObjCBIndex++;
 	treeSpritesRitem->Mat = mMaterials["treeSprites"].get();
 	treeSpritesRitem->Geo = mGeometries["treeSpritesGeo"].get();
 	treeSpritesRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
 	treeSpritesRitem->IndexCount = treeSpritesRitem->Geo->DrawArgs["points"].IndexCount;
 	treeSpritesRitem->StartIndexLocation = treeSpritesRitem->Geo->DrawArgs["points"].StartIndexLocation;
 	treeSpritesRitem->BaseVertexLocation = treeSpritesRitem->Geo->DrawArgs["points"].BaseVertexLocation;
-
 	mRitemLayer[(int)RenderLayer::AlphaTestedTreeSprites].push_back(treeSpritesRitem.get());
 
 	mAllRitems.push_back(std::move(wavesRitem));
@@ -1033,8 +1018,6 @@ void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vect
 	UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
 
 	auto objectCB = mCurrFrameResource->ObjectCB->Resource();
-	auto matCB = mCurrFrameResource->MaterialCB->Resource();
-
 
 	// For each render item...
 	for (size_t i = 0; i < ritems.size(); ++i)
@@ -1047,15 +1030,10 @@ void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vect
 		cmdList->IASetIndexBuffer(&ibv);
 		cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-		CD3DX12_GPU_DESCRIPTOR_HANDLE tex(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-		tex.Offset(ri->Mat->DiffuseSrvHeapIndex, mCbvSrvDescriptorSize);
 
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
-		D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex * matCBByteSize;
 
-		cmdList->SetGraphicsRootDescriptorTable(0, tex);
 		cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-		cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
 
 		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
@@ -1145,21 +1123,47 @@ XMFLOAT3 d3dApp::GetHillsSlope(float x, float z)const
 		? 0.03f * z * cosf(0.1f * x) - 0.3f * cosf(0.1f * z)
 		: -0.03f * z * cosf(0.1f * x) - 0.3f * cosf(0.1f * z)
 		, 0.0f);
-	XMFLOAT3 cotangent(0.0f,
+	XMFLOAT3 bitangent(0.0f,
 		0.3f * sinf(0.1f * x) + 0.03f * x * sinf(0.1f * z) > 0.0f // ensure it is positive relative to y-axis
 		? 0.3f * sinf(0.1f * x) + 0.03f * x * sinf(0.1f * z)
 		: -0.3f * sinf(0.1f * x) + 0.03f * x * sinf(0.1f * z),
 		1.0f);
 	XMFLOAT3 up(0.0f, 1.0f, 0.0f);
 
+	XMVECTOR _t = XMVector3Normalize(XMLoadFloat3(&tangent));
+	XMVECTOR _b = XMVector3Normalize(XMLoadFloat3(&bitangent));
+
 	// compare with "up" vector
-	XMVECTOR tanProj = XMVector3Dot(XMVector3Normalize(XMLoadFloat3(&tangent)), XMLoadFloat3(&up)) * XMVector3Normalize(XMLoadFloat3(&tangent));
-	XMVECTOR cotanProj = XMVector3Dot(XMVector3Normalize(XMLoadFloat3(&cotangent)), XMLoadFloat3(&up)) * XMVector3Normalize(XMLoadFloat3(&cotangent));
+	XMVECTOR tanProj = XMVector3Dot(_t, XMLoadFloat3(&up)) * _t;
+	XMVECTOR bitanProj = XMVector3Dot(_b, XMLoadFloat3(&up)) * _b;
 
 	XMFLOAT3 slope;
-	XMStoreFloat3(&slope, XMVector3Normalize(tanProj + cotanProj));
+	XMStoreFloat3(&slope, XMVector3Normalize(tanProj + bitanProj));
 
 	return slope;
+}
+
+float d3dApp::GetWalkModifier()const
+{
+
+	XMFLOAT3 pos = mCamera.GetPosition3f();
+	XMFLOAT3 pos2;
+
+	XMStoreFloat3(&pos2, XMVectorMultiplyAdd(mCamera.GetLook(), XMVectorReplicate(10.0f), mCamera.GetPosition()));
+
+	XMFLOAT3 currSlope = GetHillsSlope(pos.x, pos.z);
+	XMFLOAT3 futureSlope = GetHillsSlope(pos2.x, pos2.z);
+	
+
+	XMVECTOR currUp = XMVector3Dot(XMVector3Normalize(XMLoadFloat3(&currSlope)), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+	XMVECTOR futureUp = XMVector3Dot(XMVector3Normalize(XMLoadFloat3(&futureSlope)), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+	XMStoreFloat3(&pos, currUp);
+	XMStoreFloat3(&pos2, futureUp);
+
+
+	return (pos2.x - pos.x)*50.0f;
+
 }
 
 void d3dApp::OnResize()
@@ -1252,9 +1256,7 @@ void d3dApp::OnResize()
 
 	mScissorRect = { 0, 0, mClientWidth, mClientHeight };
 
-	// The window resized, so update the aspect ratio and recompute the projection matrix.
-	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
-	XMStoreFloat4x4(&mProj, P);
+	mCamera.SetLens(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
 }
 
 int d3dApp::Run()
@@ -1289,7 +1291,7 @@ int d3dApp::Run()
 
 void d3dApp::Update(const GameTimer& gt)
 {
-	UpdateCamera(gt);
+	OnKeyboardInput(gt);
 
 	// Cycle through the circular frame resource array.
 	mCurrFrameResourceIndex = (mCurrFrameResourceIndex + 1) % gNumFrameResources;
@@ -1307,7 +1309,7 @@ void d3dApp::Update(const GameTimer& gt)
 
 	AnimateMaterials(gt);
 	UpdateObjectCBs(gt);
-	UpdateMaterialCBs(gt);
+	UpdateMaterialBuffer(gt);
 	UpdateMainPassCB(gt);
 }
 
@@ -1321,17 +1323,14 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
 	// Reusing the command list reuses memory.
-	if (mIsWireframe)
-	{
-		ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque_wireframe"].Get()));
-	}
-	else
-	{
-		ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
-	}
-
-	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
-	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	//if (mIsWireframe)
+	//{
+	//	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque_wireframe"].Get()));
+	//}
+	//else
+	//{
+	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
+	//}
 
 	UpdateWavesGPU(gt);
 
@@ -1354,12 +1353,25 @@ void d3dApp::Draw(const GameTimer& gt)
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvView = DepthStencilView();
 	mCommandList->OMSetRenderTargets(1, &backBuff, true, &dsvView);
 
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
+	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+
+	// Bind all the textures used in this scene.  Observe
+	// that we only have to specify the first descriptor in the table.  
+	// The root signature knows how many descriptors are expected in the table.
+	mCommandList->SetGraphicsRootDescriptorTable(0, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 	mCommandList->SetGraphicsRootDescriptorTable(4, mWaves->DisplacementMap());
+
+	// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
+	// set as a root descriptor.
+	auto matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
+	mCommandList->SetGraphicsRootShaderResourceView(3, matBuffer->GetGPUVirtualAddress());
 
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 
@@ -1421,44 +1433,36 @@ void d3dApp::OnMouseMove(WPARAM btnState, int x, int y)
 		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
 		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
 
-		// Update angles based on input to orbit camera around box.
-		mTheta += dx;
-		mPhi += dy;
-
-		// Restrict the angle mPhi.
-		mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
-	}
-	else if ((btnState & MK_RBUTTON) != 0)
-	{
-		// Make each pixel correspond to 0.2 unit in the scene.
-		float dx = 0.05f * static_cast<float>(x - mLastMousePos.x);
-		float dy = 0.05f * static_cast<float>(y - mLastMousePos.y);
-
-		// Update the camera radius based on input.
-		mRadius += dx - dy;
-
-		// Restrict the radius.
-		mRadius = MathHelper::Clamp(mRadius, 1.0f, 150.0f);
+		mCamera.Pitch(dy);
+		mCamera.RotateY(dx);
 	}
 
 	mLastMousePos.x = x;
 	mLastMousePos.y = y;
 }
 
-void d3dApp::UpdateCamera(const GameTimer& gt)
+void d3dApp::OnKeyboardInput(const GameTimer& gt)
 {
-	// Convert Spherical to Cartesian coordinates.
-	mEyePos.x = mRadius * sinf(mPhi) * cosf(mTheta);
-	mEyePos.z = mRadius * sinf(mPhi) * sinf(mTheta);
-	mEyePos.y = mRadius * cosf(mPhi);
+	const float dt = gt.DeltaTime();
 
-	// Build the view matrix.
-	XMVECTOR pos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
-	XMVECTOR target = XMVectorZero();
-	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	float y = GetHillsHeight(mCamera.GetPosition3f().x, mCamera.GetPosition3f().z);
+	y += mCamera.GetPlayerHeight();
 
-	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-	XMStoreFloat4x4(&mView, view);
+	const float speed = 50.0f;
+
+	if (GetAsyncKeyState('W') & 0x8000)
+		mCamera.Walk(speed * dt, y);
+
+	if (GetAsyncKeyState('S') & 0x8000)
+		mCamera.Walk(-speed * dt, y);
+
+	if (GetAsyncKeyState('A') & 0x8000)
+		mCamera.Strafe(-speed * dt, y);
+
+	if (GetAsyncKeyState('D') & 0x8000)
+		mCamera.Strafe(speed * dt, y);
+
+	mCamera.UpdateViewMatrix();
 }
 
 void d3dApp::AnimateMaterials(const GameTimer& gt)
@@ -1502,6 +1506,7 @@ void d3dApp::UpdateObjectCBs(const GameTimer& gt)
 			XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
 			objConstants.DisplacementMapTexelSize = e->DisplacementMapTexelSize;
 			objConstants.GridSpatialStep = e->GridSpatialStep;
+			objConstants.MaterialIndex = e->Mat->MatCBIndex;
 
 			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
 
@@ -1511,9 +1516,9 @@ void d3dApp::UpdateObjectCBs(const GameTimer& gt)
 	}
 }
 
-void d3dApp::UpdateMaterialCBs(const GameTimer& gt)
+void d3dApp::UpdateMaterialBuffer(const GameTimer& gt)
 {
-	auto currMaterialCB = mCurrFrameResource->MaterialCB.get();
+	auto currMaterialCB = mCurrFrameResource->MaterialBuffer.get();
 	for (auto& e : mMaterials)
 	{
 		// Only update the cbuffer data if the constants have changed.  If the cbuffer
@@ -1523,13 +1528,14 @@ void d3dApp::UpdateMaterialCBs(const GameTimer& gt)
 		{
 			XMMATRIX matTransform = XMLoadFloat4x4(&mat->MatTransform);
 
-			MaterialConstants matConstants;
-			matConstants.DiffuseAlbedo = mat->DiffuseAlbedo;
-			matConstants.FresnelR0 = mat->FresnelR0;
-			matConstants.Roughness = mat->Roughness;
-			XMStoreFloat4x4(&matConstants.MatTransform, XMMatrixTranspose(matTransform));
+			MaterialData matData;
+			matData.DiffuseAlbedo = mat->DiffuseAlbedo;
+			matData.FresnelR0 = mat->FresnelR0;
+			matData.Roughness = mat->Roughness;
+			XMStoreFloat4x4(&matData.MatTransform, XMMatrixTranspose(matTransform));
+			matData.DiffuseMapIndex = mat->DiffuseSrvHeapIndex;
 
-			currMaterialCB->CopyData(mat->MatCBIndex, matConstants);
+			currMaterialCB->CopyData(mat->MatCBIndex, matData);
 
 			// Next FrameResource need to be updated too.
 			mat->NumFramesDirty--;
@@ -1539,8 +1545,8 @@ void d3dApp::UpdateMaterialCBs(const GameTimer& gt)
 
 void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 {
-	XMMATRIX view = XMLoadFloat4x4(&mView);
-	XMMATRIX proj = XMLoadFloat4x4(&mProj);
+	XMMATRIX view = mCamera.GetView();
+	XMMATRIX proj = mCamera.GetProj();
 
 	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
 	XMVECTOR det = XMMatrixDeterminant(view);
@@ -1556,7 +1562,7 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	XMStoreFloat4x4(&mMainPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-	mMainPassCB.EyePosW = mEyePos;
+	mMainPassCB.EyePosW = mCamera.GetPosition3f();
 	mMainPassCB.RenderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
 	mMainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
 	mMainPassCB.NearZ = 1.0f;
@@ -1582,15 +1588,11 @@ void d3dApp::UpdateWavesGPU(const GameTimer& gt)
 	if ((mTimer.TotalTime() - t_base) >= 0.25f)
 	{
 		t_base += 0.25f;
-
 		int i = MathHelper::Rand(4, mWaves->RowCount() - 5);
 		int j = MathHelper::Rand(4, mWaves->ColumnCount() - 5);
-
 		float r = MathHelper::RandF(1.0f, 2.0f);
-
 		mWaves->Disturb(mCommandList.Get(), mWavesRootSignature.Get(), mPSOs["wavesDisturb"].Get(), i, j, r);
 	}
-
 	// Update the wave simulation.
 	mWaves->Update(gt, mCommandList.Get(), mWavesRootSignature.Get(), mPSOs["wavesUpdate"].Get());
 }

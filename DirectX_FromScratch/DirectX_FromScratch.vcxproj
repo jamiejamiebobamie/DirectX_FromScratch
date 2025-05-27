@@ -91,7 +91,7 @@
       <DisableOptimizations>false</DisableOptimizations>
     </FxCompile>
     <FxCompile>
-      <ShaderModel>5.0</ShaderModel>
+      <ShaderModel>5.1</ShaderModel>
       <EntryPointName />
     </FxCompile>
   </ItemDefinitionGroup>
@@ -125,6 +125,7 @@
     </Link>
     <FxCompile>
       <EntryPointName />
+      <ShaderModel>5.1</ShaderModel>
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -144,6 +145,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="d3dx12_barriers.h" />
     <ClInclude Include="d3dx12_check_feature_support.h" />
@@ -170,6 +172,7 @@
     <ClInclude Include="UploadBuffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="DirectX_FromScratch.cpp" />
