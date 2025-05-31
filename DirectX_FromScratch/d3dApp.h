@@ -166,6 +166,8 @@ private:
 
 	bool mIsWireframe = false;
 
+	bool mIsRoll = false;
+
 	POINT mLastMousePos;
 
 	Camera mCamera;

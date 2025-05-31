@@ -72,6 +72,7 @@ public:
 	void Walk(float d, float height);
 
 	// Rotate the camera.
+	void Roll(float angle);
 	void Pitch(float angle);
 	void RotateY(float angle);
 

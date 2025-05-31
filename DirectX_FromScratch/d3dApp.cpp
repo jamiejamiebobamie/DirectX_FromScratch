@@ -1434,7 +1434,7 @@ void d3dApp::OnMouseMove(WPARAM btnState, int x, int y)
 		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
 
 		mCamera.Pitch(dy);
-		mCamera.RotateY(dx);
+		mIsRoll ? mCamera.Roll(-dx) : mCamera.RotateY(dx);
 	}
 
 	mLastMousePos.x = x;
@@ -1450,6 +1450,8 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 
 	const float speed = 50.0f;
 
+	mIsRoll = false;
+
 	if (GetAsyncKeyState('W') & 0x8000)
 		mCamera.Walk(speed * dt, y);
 
@@ -1461,6 +1463,9 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 
 	if (GetAsyncKeyState('D') & 0x8000)
 		mCamera.Strafe(speed * dt, y);
+
+	if (GetAsyncKeyState('R') & 0x8000)
+		mIsRoll = true;
 
 	mCamera.UpdateViewMatrix();
 }
