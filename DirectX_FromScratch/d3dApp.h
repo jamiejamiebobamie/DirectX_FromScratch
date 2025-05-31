@@ -27,10 +27,7 @@ using namespace DirectX::PackedVector;
 enum class RenderLayer : int
 {
 	Opaque = 0,
-	Transparent,
-	AlphaTested,
-	AlphaTestedTreeSprites,
-	GpuWaves,
+	Highlight,
 	Count
 };
 
@@ -42,6 +39,10 @@ struct RenderItem
 {
 	RenderItem() = default;
 	RenderItem(const RenderItem& rhs) = delete;
+
+	bool Visible = true;
+
+	BoundingBox Bounds;
 
 	// World matrix of the shape that describes the object's local space
 	// relative to the world space, which defines the position, orientation,
@@ -65,12 +66,8 @@ struct RenderItem
 	// Primitive topology.
 	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-	BoundingBox Bounds;
-	std::vector<InstanceData> Instances;
-
 	// DrawIndexedInstanced parameters.
 	UINT IndexCount = 0;
-	UINT InstanceCount = 0;
 	UINT StartIndexLocation = 0;
 	int BaseVertexLocation = 0;
 };
@@ -101,16 +98,15 @@ public:
 
 private:
 	void AnimateMaterials(const GameTimer& gt);
-	void UpdateInstanceData(const GameTimer& gt);
+	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
-	void UpdateWavesGPU(const GameTimer& gt);
 
 	void LoadTextures();
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildSkullGeometry();
+	void BuildCarGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
@@ -147,6 +143,8 @@ private:
 
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
+	RenderItem* mPickedRitem = nullptr;
+
 	PassConstants mMainPassCB;
 
 	bool mIsWireframe = false;
@@ -172,6 +170,7 @@ protected:
 	 void OnMouseUp(WPARAM btnState, int x, int y);
 	 void OnMouseMove(WPARAM btnState, int x, int y);
 	 void OnKeyboardInput(const GameTimer& gt);
+	 void Pick(int sx, int sy);
 
 protected:
 
