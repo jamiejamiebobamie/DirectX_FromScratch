@@ -525,9 +525,9 @@ void d3dApp::BuildSkullGeometry()
 		vMax = XMVectorMax(vMax, P);
 	}
 
-	BoundingBox bounds;
+	BoundingSphere bounds;
 	XMStoreFloat3(&bounds.Center, 0.5f * (vMin + vMax));
-	XMStoreFloat3(&bounds.Extents, 0.5f * (vMax - vMin));
+	XMStoreFloat(&bounds.Radius, 0.5f * (vMax - vMin));
 
 	fin >> ignore;
 	fin >> ignore;
