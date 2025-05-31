@@ -36,18 +36,12 @@ enum class RenderLayer : int
 
 extern const int gNumFrameResources;
 
-struct TreeSpriteVertex
-{
-	XMFLOAT3 Pos;
-	XMFLOAT2 Size;
-	XMFLOAT3 Slope;
-};
-
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
 struct RenderItem
 {
 	RenderItem() = default;
+	RenderItem(const RenderItem& rhs) = delete;
 
 	// World matrix of the shape that describes the object's local space
 	// relative to the world space, which defines the position, orientation,
@@ -56,13 +50,9 @@ struct RenderItem
 
 	XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
 
-	// Used for GPU waves render items.
-	DirectX::XMFLOAT2 DisplacementMapTexelSize = { 1.0f, 1.0f };
-	float GridSpatialStep = 1.0f;
-
 	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
 	// Because we have an object cbuffer for each FrameResource, we have to apply the
-	// update to each FrameResource.  Thus, when we modify object data we should set 
+	// update to each FrameResource.  Thus, when we modify obect data we should set 
 	// NumFramesDirty = gNumFrameResources so that each frame resource gets the update.
 	int NumFramesDirty = gNumFrameResources;
 
@@ -73,10 +63,14 @@ struct RenderItem
 	MeshGeometry* Geo = nullptr;
 
 	// Primitive topology.
-	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+
+	BoundingBox Bounds;
+	std::vector<InstanceData> Instances;
 
 	// DrawIndexedInstanced parameters.
 	UINT IndexCount = 0;
+	UINT InstanceCount = 0;
 	UINT StartIndexLocation = 0;
 	int BaseVertexLocation = 0;
 };
@@ -105,27 +99,18 @@ public:
 	bool Initialize();
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-	float GetHillsHeight(float x, float z)const;
-	XMFLOAT3 GetHillsNormal(float x, float z)const;
-	XMFLOAT3 GetHillsSlope(float x, float z)const;
-	float GetWalkModifier()const;
-
 private:
 	void AnimateMaterials(const GameTimer& gt);
-	void UpdateObjectCBs(const GameTimer& gt);
+	void UpdateInstanceData(const GameTimer& gt);
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
 	void UpdateWavesGPU(const GameTimer& gt);
 
 	void LoadTextures();
 	void BuildRootSignature();
-	void BuildWavesRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildLandGeometry();
-	void BuildWavesGeometry();
-	void BuildBoxGeometry();
-	void BuildTreeSpritesGeometry();
+	void BuildSkullGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
@@ -143,7 +128,6 @@ private:
 	UINT mCbvSrvDescriptorSize = 0;
 
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
-	ComPtr<ID3D12RootSignature> mWavesRootSignature = nullptr;
 
 	ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
 
@@ -153,18 +137,25 @@ private:
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
 	std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
 
-	std::vector<D3D12_INPUT_ELEMENT_DESC> mStdInputLayout;
-	std::vector<D3D12_INPUT_ELEMENT_DESC> mTreeSpriteInputLayout;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 
+	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
-	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
+	// Render items divided by PSO.
+	std::vector<RenderItem*> mOpaqueRitems;
 
-	std::unique_ptr<GpuWaves> mWaves;
+	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
 	PassConstants mMainPassCB;
 
 	bool mIsWireframe = false;
+
+	UINT mInstanceCount = 0;
+
+	bool mFrustumCullingEnabled = true;
+
+	BoundingFrustum mCamFrustum;
 
 	POINT mLastMousePos;
 

@@ -182,7 +182,7 @@ XMFLOAT4X4 Camera::GetProj4x4f()const
 	return mProj;
 }
 
-void Camera::Strafe(float d, float height)
+void Camera::Strafe(float d)
 {
 	// mPosition += d*mRight
 	XMVECTOR s = XMVectorReplicate(d);
@@ -190,20 +190,16 @@ void Camera::Strafe(float d, float height)
 	XMVECTOR p = XMLoadFloat3(&mPosition);
 	XMStoreFloat3(&mPosition, XMVectorMultiplyAdd(s, r, p));
 
-	mPosition.y = height;
-
 	mViewDirty = true;
 }
 
-void Camera::Walk(float d, float height)
+void Camera::Walk(float d)
 {
 	// mPosition += d*mLook
 	XMVECTOR s = XMVectorReplicate(d);
 	XMVECTOR l = XMLoadFloat3(&mLook);
 	XMVECTOR p = XMLoadFloat3(&mPosition);
 	XMStoreFloat3(&mPosition, XMVectorMultiplyAdd(s, l, p));
-
-	mPosition.y = height;
 
 	mViewDirty = true;
 }

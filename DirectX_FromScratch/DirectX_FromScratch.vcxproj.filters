@@ -87,6 +87,9 @@
     <ClInclude Include="GpuWaves.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectX_FromScratch.cpp">
@@ -116,6 +119,9 @@
     <ClCompile Include="GpuWaves.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DirectX_FromScratch.rc">
@@ -129,9 +135,5 @@
     <Image Include="DirectX_FromScratch.ico">
       <Filter>Resource Files</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\DisturbWavesCS.hlsl" />
-    <FxCompile Include="Shaders\UpdateWavesCS.hlsl" />
   </ItemGroup>
 </Project>
