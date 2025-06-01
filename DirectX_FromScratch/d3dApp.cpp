@@ -292,7 +292,7 @@ void d3dApp::LoadTextures()
 		L"Textures/bricks2.dds",
 		L"Textures/tile.dds",
 		L"Textures/white1x1.dds",
-		L"Textures/grasscube1024.dds"
+		L"Textures/test_cubemap.dds"
 	};
 
 	for (int i = 0; i < (int)texNames.size(); ++i)
