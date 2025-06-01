@@ -418,8 +418,8 @@ void d3dApp::BuildShadersAndInputLayout()
 		NULL, NULL
 	};
 
-	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "PS", "ps_5_1");
+	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", alphaTestDefines, "VS", "vs_5_1");
+	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", alphaTestDefines, "PS", "ps_5_1");
 
 	mShaders["skyVS"] = d3dUtil::CompileShader(L"Shaders\\Sky.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["skyPS"] = d3dUtil::CompileShader(L"Shaders\\Sky.hlsl", nullptr, "PS", "ps_5_1");
@@ -682,12 +682,32 @@ void d3dApp::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 
 	//
+	// PSO for transparent refracted objects.
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectPsoDesc = opaquePsoDesc;
+	D3D12_RENDER_TARGET_BLEND_DESC reflectBlendDesc;
+	reflectBlendDesc.BlendEnable = true;
+	reflectBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	reflectBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	reflectBlendDesc.LogicOpEnable = false;
+	reflectBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	reflectBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	reflectBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	reflectBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+	reflectBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	reflectBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+	reflectPsoDesc.BlendState.RenderTarget[0] = reflectBlendDesc;
+	//reflectPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&reflectPsoDesc, IID_PPV_ARGS(&mPSOs["refract"])));
+
+	//
 	// PSO for sky.
 	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC skyPsoDesc = opaquePsoDesc;
 
 	// The camera is inside the sky sphere, so just turn off culling.
-	skyPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+	skyPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
 	// Make sure the depth function is LESS_EQUAL and not just LESS.  
 	// Otherwise, the normalized depth values at z = 1 (NDC) will 
@@ -747,9 +767,9 @@ void d3dApp::BuildMaterials()
 	skullMat->Name = "skullMat";
 	skullMat->MatCBIndex = 3;
 	skullMat->DiffuseSrvHeapIndex = 2;
-	skullMat->DiffuseAlbedo = XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f);
-	skullMat->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
-	skullMat->Roughness = 0.2f;
+	skullMat->DiffuseAlbedo = XMFLOAT4(0.6f, 0.6f, 0.6f, 0.5f);
+	skullMat->FresnelR0 = XMFLOAT3(0.98f, 0.97f, 0.95f);
+	skullMat->Roughness = 0.05f;
 
 	auto sky = std::make_unique<Material>();
 	sky->Name = "sky";
@@ -807,7 +827,7 @@ void d3dApp::BuildRenderItems()
 	skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
 	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
 
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(skullRitem.get());
+	mRitemLayer[(int)RenderLayer::Transparent].push_back(skullRitem.get());
 	mAllRitems.push_back(std::move(skullRitem));
 
 	auto gridRitem = std::make_unique<RenderItem>();
@@ -862,7 +882,7 @@ void d3dApp::BuildRenderItems()
 		XMStoreFloat4x4(&leftSphereRitem->World, leftSphereWorld);
 		leftSphereRitem->TexTransform = MathHelper::Identity4x4();
 		leftSphereRitem->ObjCBIndex = objCBIndex++;
-		leftSphereRitem->Mat = mMaterials["mirror0"].get();
+		leftSphereRitem->Mat = mMaterials["skullMat"].get();
 		leftSphereRitem->Geo = mGeometries["shapeGeo"].get();
 		leftSphereRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 		leftSphereRitem->IndexCount = leftSphereRitem->Geo->DrawArgs["sphere"].IndexCount;
@@ -872,7 +892,7 @@ void d3dApp::BuildRenderItems()
 		XMStoreFloat4x4(&rightSphereRitem->World, rightSphereWorld);
 		rightSphereRitem->TexTransform = MathHelper::Identity4x4();
 		rightSphereRitem->ObjCBIndex = objCBIndex++;
-		rightSphereRitem->Mat = mMaterials["mirror0"].get();
+		rightSphereRitem->Mat = mMaterials["skullMat"].get();
 		rightSphereRitem->Geo = mGeometries["shapeGeo"].get();
 		rightSphereRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 		rightSphereRitem->IndexCount = rightSphereRitem->Geo->DrawArgs["sphere"].IndexCount;
@@ -881,8 +901,8 @@ void d3dApp::BuildRenderItems()
 
 		mRitemLayer[(int)RenderLayer::Opaque].push_back(leftCylRitem.get());
 		mRitemLayer[(int)RenderLayer::Opaque].push_back(rightCylRitem.get());
-		mRitemLayer[(int)RenderLayer::Opaque].push_back(leftSphereRitem.get());
-		mRitemLayer[(int)RenderLayer::Opaque].push_back(rightSphereRitem.get());
+		mRitemLayer[(int)RenderLayer::Transparent].push_back(leftSphereRitem.get());
+		mRitemLayer[(int)RenderLayer::Transparent].push_back(rightSphereRitem.get());
 
 		mAllRitems.push_back(std::move(leftCylRitem));
 		mAllRitems.push_back(std::move(rightCylRitem));
@@ -1182,6 +1202,9 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
+
+	mCommandList->SetPipelineState(mPSOs["refract"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Transparent]);
 
 	// Indicate a state transition on the resource usage.
 	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),

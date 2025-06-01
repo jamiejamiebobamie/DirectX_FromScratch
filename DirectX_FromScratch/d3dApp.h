@@ -27,6 +27,7 @@ enum class RenderLayer : int
 {
 	Opaque = 0,
 	Sky,
+	Transparent,
 	Count
 };
 
