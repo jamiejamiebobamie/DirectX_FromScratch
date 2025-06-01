@@ -11,7 +11,6 @@
 #include "UploadBuffer.h"
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
-#include "GpuWaves.h"
 #include "Camera.h"
 
 // Link necessary d3d12 libraries.
@@ -27,7 +26,7 @@ using namespace DirectX::PackedVector;
 enum class RenderLayer : int
 {
 	Opaque = 0,
-	Highlight,
+	Sky,
 	Count
 };
 
@@ -39,10 +38,6 @@ struct RenderItem
 {
 	RenderItem() = default;
 	RenderItem(const RenderItem& rhs) = delete;
-
-	bool Visible = true;
-
-	BoundingBox Bounds;
 
 	// World matrix of the shape that describes the object's local space
 	// relative to the world space, which defines the position, orientation,
@@ -106,7 +101,8 @@ private:
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildCarGeometry();
+	void BuildShapeGeometry();
+	void BuildSkullGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
@@ -159,6 +155,10 @@ private:
 
 	Camera mCamera;
 
+	UINT mSkyTexHeapIndex = 0;
+
+	float mVFovMod = 0.25f;
+
 protected:
 
 	 void CreateRtvAndDsvDescriptorHeaps();
@@ -170,7 +170,6 @@ protected:
 	 void OnMouseUp(WPARAM btnState, int x, int y);
 	 void OnMouseMove(WPARAM btnState, int x, int y);
 	 void OnKeyboardInput(const GameTimer& gt);
-	 void Pick(int sx, int sy);
 
 protected:
 
