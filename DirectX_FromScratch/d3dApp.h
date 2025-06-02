@@ -102,7 +102,6 @@ private:
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
 	void BuildShapeGeometry();
-	void BuildSkullGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
@@ -156,6 +155,8 @@ private:
 	Camera mCamera;
 
 	UINT mSkyTexHeapIndex = 0;
+
+	UINT mIsNoNormalMap = 1;
 
 	float mVFovMod = 0.25f;
 
