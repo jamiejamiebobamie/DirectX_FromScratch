@@ -161,6 +161,9 @@ float4 PS(VertexOut pin) : SV_Target
 	
 	// Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
+    pin.TangentW = normalize(pin.TangentW);
+    
+    float3 BitangentW = cross(pin.TangentW, pin.NormalW);
 	
     float4 normalMapSample = gTextureMaps[normalMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
     float3 bumpedNormalW = gIsNoNormalMap == 1 ? pin.NormalW : NormalSampleToWorldSpace(normalMapSample.rgb, pin.NormalW, pin.TangentW);
@@ -177,15 +180,41 @@ float4 PS(VertexOut pin) : SV_Target
     const float shininess = (1.0f - roughness) * normalMapSample.a;
     Material mat = { diffuseAlbedo, fresnelR0, shininess };
     float3 shadowFactor = 1.0f;
-    float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
-        bumpedNormalW, toEyeW, shadowFactor);
+    
+    float3x3 wToTex = (float3x3) 0.0f;
+    
+    // this inverse transpose of tangent to world, to go world to tangent space
+    wToTex[0][0] = pin.TangentW[0];
+    wToTex[1][0] = pin.TangentW[1];
+    wToTex[2][0] = pin.TangentW[2];
+    wToTex[0][1] = BitangentW[0];
+    wToTex[1][1] = BitangentW[1];
+    wToTex[2][1] = BitangentW[2];
+    wToTex[0][2] = pin.NormalW[0];
+    wToTex[1][2] = pin.NormalW[1];
+    wToTex[2][2] = pin.NormalW[2];
+        
+    float3 PosT = mul(pin.PosW, wToTex);
+    float3 bumpedNormalT = mul(bumpedNormalW, wToTex);
+    float3 toEyeT = mul(toEyeW, wToTex);
+    
+    Light lights[16];
+    
+    for (int i = 0; i < 3; i++)
+    {
+        lights[i].Direction = mul(gLights[i].Direction, wToTex);
+        lights[i].Strength = gLights[i].Strength;
+    }
+    
+    float4 directLight = ComputeLighting(lights, mat, PosT,
+        bumpedNormalT, toEyeT, shadowFactor);
 
     float4 litColor = ambient + directLight;
 
 	// Add in specular reflections.
-    float3 r = reflect(-toEyeW, bumpedNormalW);
+    float3 r = reflect(-toEyeT, bumpedNormalT);
     float4 reflectionColor = gCubeMap.Sample(gsamLinearWrap, r);
-    float3 fresnelFactor = SchlickFresnel(fresnelR0, bumpedNormalW, r);
+    float3 fresnelFactor = SchlickFresnel(fresnelR0, bumpedNormalT, r);
     litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
 	
     // Common convention to take alpha from diffuse albedo.
