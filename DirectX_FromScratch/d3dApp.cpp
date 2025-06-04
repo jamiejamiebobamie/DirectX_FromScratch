@@ -282,6 +282,10 @@ void d3dApp::LoadTextures()
 	{
 		"bricksDiffuseMap",
 		"bricksNormalMap",
+		"water1DiffuseMap",
+		"water1NormalMap",
+		"water2DiffuseMap",
+		"water2NormalMap",
 		"tileDiffuseMap",
 		"tileNormalMap",
 		"defaultDiffuseMap",
@@ -293,6 +297,10 @@ void d3dApp::LoadTextures()
 	{
 		L"Textures/bricks2.dds",
 		L"Textures/bricks2_nmap.dds",
+		L"Textures/water1.dds",
+		L"Textures/water1_nmap.dds",
+		L"Textures/water2.dds",
+		L"Textures/water2_nmap.dds",
 		L"Textures/tile.dds",
 		L"Textures/tile_nmap.dds",
 		L"Textures/white1x1.dds",
@@ -361,10 +369,10 @@ void d3dApp::BuildRootSignature()
 void d3dApp::BuildDescriptorHeaps()
 {
 	//
-// Create the SRV heap.
-//
+	// Create the SRV heap.
+	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 10;
+	srvHeapDesc.NumDescriptors = 11;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -378,6 +386,12 @@ void d3dApp::BuildDescriptorHeaps()
 	{
 		mTextures["bricksDiffuseMap"]->Resource,
 		mTextures["bricksNormalMap"]->Resource,
+
+		mTextures["water1DiffuseMap"]->Resource,
+		mTextures["water1NormalMap"]->Resource,
+		mTextures["water2DiffuseMap"]->Resource,
+		mTextures["water2NormalMap"]->Resource,
+
 		mTextures["tileDiffuseMap"]->Resource,
 		mTextures["tileNormalMap"]->Resource,
 		mTextures["defaultDiffuseMap"]->Resource,
@@ -425,6 +439,9 @@ void d3dApp::BuildShadersAndInputLayout()
 
 	mShaders["skyVS"] = d3dUtil::CompileShader(L"Shaders\\Sky.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["skyPS"] = d3dUtil::CompileShader(L"Shaders\\Sky.hlsl", nullptr, "PS", "ps_5_1");
+
+	mShaders["waterVS"] = d3dUtil::CompileShader(L"Shaders\\Water.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["waterPS"] = d3dUtil::CompileShader(L"Shaders\\Water.hlsl", nullptr, "PS", "ps_5_1");
 
 	mInputLayout =
 	{
@@ -598,6 +615,24 @@ void d3dApp::BuildPSOs()
 	//
 	// PSO for sky.
 	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC waterPsoDesc = opaquePsoDesc;
+	waterPsoDesc.pRootSignature = mRootSignature.Get();
+	waterPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["waterVS"]->GetBufferPointer()),
+		mShaders["waterVS"]->GetBufferSize()
+	};
+	waterPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["waterPS"]->GetBufferPointer()),
+		mShaders["waterPS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&waterPsoDesc, IID_PPV_ARGS(&mPSOs["water"])));
+
+
+	//
+	// PSO for sky.
+	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC skyPsoDesc = opaquePsoDesc;
 
 	// The camera is inside the sky sphere, so just turn off culling.
@@ -632,43 +667,66 @@ void d3dApp::BuildFrameResources()
 
 void d3dApp::BuildMaterials()
 {
+
+	int MatCBIndex = 0;
+
 	auto bricks0 = std::make_unique<Material>();
 	bricks0->Name = "bricks0";
-	bricks0->MatCBIndex = 0;
+	bricks0->MatCBIndex = MatCBIndex++;
 	bricks0->DiffuseSrvHeapIndex = 0;
 	bricks0->NormalSrvHeapIndex = 1;
 	bricks0->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	bricks0->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	bricks0->Roughness = 0.3f;
 
+	auto water1 = std::make_unique<Material>();
+	water1->Name = "water1";
+	water1->MatCBIndex = MatCBIndex++;
+	water1->DiffuseSrvHeapIndex = 2;
+	water1->NormalSrvHeapIndex = 3;
+	water1->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	water1->FresnelR0 = XMFLOAT3(0.98f, 0.97f, 0.95f);
+	water1->Roughness = 0.3f;
+
+	auto water2 = std::make_unique<Material>();
+	water2->Name = "water2";
+	water2->MatCBIndex = MatCBIndex++;
+	water2->DiffuseSrvHeapIndex = 4;
+	bricks0->NormalSrvHeapIndex = 5;
+	water2->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	water2->FresnelR0 = XMFLOAT3(0.98f, 0.97f, 0.95f);
+	water2->Roughness = 0.3f;
+
 	auto tile0 = std::make_unique<Material>();
 	tile0->Name = "tile0";
-	tile0->MatCBIndex = 2;
-	tile0->DiffuseSrvHeapIndex = 2;
-	tile0->NormalSrvHeapIndex = 3;
+	tile0->MatCBIndex = MatCBIndex++;
+	tile0->DiffuseSrvHeapIndex = 6;
+	tile0->NormalSrvHeapIndex = 7;
 	tile0->DiffuseAlbedo = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
 	tile0->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
 	tile0->Roughness = 0.1f;
 
 	auto mirror0 = std::make_unique<Material>();
 	mirror0->Name = "mirror0";
-	mirror0->MatCBIndex = 3;
-	mirror0->DiffuseSrvHeapIndex = 4;
-	mirror0->NormalSrvHeapIndex = 5;
+	mirror0->MatCBIndex = MatCBIndex++;
+	mirror0->DiffuseSrvHeapIndex = 8;
+	mirror0->NormalSrvHeapIndex = 9;
 	mirror0->DiffuseAlbedo = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	mirror0->FresnelR0 = XMFLOAT3(0.98f, 0.97f, 0.95f);
 	mirror0->Roughness = 0.1f;
 
 	auto sky = std::make_unique<Material>();
 	sky->Name = "sky";
-	sky->MatCBIndex = 4;
-	sky->DiffuseSrvHeapIndex = 6;
-	sky->NormalSrvHeapIndex = 7;
+	sky->MatCBIndex = MatCBIndex++;
+	sky->DiffuseSrvHeapIndex = 8;
+	sky->NormalSrvHeapIndex = 9;
 	sky->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	sky->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	sky->Roughness = 1.0f;
 
 	mMaterials["bricks0"] = std::move(bricks0);
+	mMaterials["water1"] = std::move(water1);
+	mMaterials["water2"] = std::move(water2);
 	mMaterials["tile0"] = std::move(tile0);
 	mMaterials["mirror0"] = std::move(mirror0);
 	mMaterials["sky"] = std::move(sky);
@@ -722,14 +780,14 @@ void d3dApp::BuildRenderItems()
 	gridRitem->World = MathHelper::Identity4x4();
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
 	gridRitem->ObjCBIndex = 3;
-	gridRitem->Mat = mMaterials["tile0"].get();
+	gridRitem->Mat = mMaterials["water1"].get(); // bind the first mat in the buffer. water references water1 and water2 (next item after water1)
 	gridRitem->Geo = mGeometries["shapeGeo"].get();
 	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
 	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
+	mRitemLayer[(int)RenderLayer::Water].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 
 	XMMATRIX brickTexTransform = XMMatrixScaling(1.5f, 2.0f, 1.0f);
@@ -1088,6 +1146,9 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 
+	mCommandList->SetPipelineState(mPSOs["water"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Water]);
+
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
 
@@ -1183,7 +1244,42 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 
 void d3dApp::AnimateMaterials(const GameTimer& gt)
 {
+	// Scroll the water material texture coordinates.
+	auto waterMat1 = mMaterials["water1"].get();
+	auto waterMat2 = mMaterials["water2"].get();
 
+	float& tu1 = waterMat1->MatTransform(3, 0);
+	float& tv1 = waterMat1->MatTransform(3, 1);
+
+	float& tu2 = waterMat2->MatTransform(3, 0);
+	float& tv2 = waterMat2->MatTransform(3, 1);
+
+	tu1 += 0.1f * gt.DeltaTime();
+	tv1 += 0.02f * gt.DeltaTime();
+	tu2 += 0.2f * gt.DeltaTime();
+	tv2 += 0.01f * gt.DeltaTime();
+
+	if (tu1 >= 1.0f)
+		tu1 -= 1.0f;
+
+	if (tv1 >= 1.0f)
+		tv1 -= 1.0f;
+
+	if (tu2 >= 1.0f)
+		tu2 -= 1.0f;
+
+	if (tv2 >= 1.0f)
+		tv2 -= 1.0f;
+
+	waterMat1->MatTransform(3, 0) = tu1;
+	waterMat1->MatTransform(3, 1) = tv1;
+
+	waterMat2->MatTransform(3, 0) = tu2;
+	waterMat2->MatTransform(3, 1) = tv2;
+
+	// Material has changed, so need to update cbuffer.
+	waterMat1->NumFramesDirty = gNumFrameResources;
+	waterMat2->NumFramesDirty = gNumFrameResources;
 }
 
 void d3dApp::UpdateObjectCBs(const GameTimer& gt)
