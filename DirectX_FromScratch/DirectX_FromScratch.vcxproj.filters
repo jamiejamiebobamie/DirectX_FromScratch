@@ -87,6 +87,9 @@
     <ClInclude Include="Camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ShadowMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectX_FromScratch.cpp">
@@ -116,6 +119,9 @@
     <ClCompile Include="Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ShadowMap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DirectX_FromScratch.rc">
@@ -132,6 +138,10 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Sky.hlsl" />
-    <FxCompile Include="Shaders\Water.hlsl" />
+    <FxCompile Include="Shaders\ShadowDebug.hlsl" />
+    <FxCompile Include="Shaders\Shadows.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Common.hlsli" />
   </ItemGroup>
 </Project>

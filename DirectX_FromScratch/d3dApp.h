@@ -12,6 +12,7 @@
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
 #include "Camera.h"
+#include "ShadowMap.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -26,8 +27,8 @@ using namespace DirectX::PackedVector;
 enum class RenderLayer : int
 {
 	Opaque = 0,
+	Debug,
 	Sky,
-	Water,
 	Count
 };
 
@@ -97,19 +98,23 @@ private:
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
+	void UpdateShadowTransform(const GameTimer& gt);
+	void UpdateShadowPassCB(const GameTimer& gt);
 
 	void LoadTextures();
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
 	void BuildShapeGeometry();
+	void BuildSkullGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
 	void BuildRenderItems();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
+	void DrawSceneToShadowMap();
 
-	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 
 
 private:
@@ -139,27 +144,42 @@ private:
 
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
-	RenderItem* mPickedRitem = nullptr;
+	UINT mSkyTexHeapIndex = 0;
+	UINT mShadowMapHeapIndex = 0;
 
-	PassConstants mMainPassCB;
+	UINT mNullCubeSrvIndex = 0;
+	UINT mNullTexSrvIndex = 0;
 
-	bool mIsWireframe = false;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 
-	UINT mInstanceCount = 0;
-
-	bool mFrustumCullingEnabled = true;
-
-	BoundingFrustum mCamFrustum;
+	PassConstants mMainPassCB;  // index 0 of pass cbuffer.
+	PassConstants mShadowPassCB;// index 1 of pass cbuffer.
 
 	POINT mLastMousePos;
 
 	Camera mCamera;
 
-	UINT mSkyTexHeapIndex = 0;
+	bool mIsOrtho = true;
 
-	UINT mIsNoNormalMap = 1;
+	std::unique_ptr<ShadowMap> mShadowMap;
 
-	float mVFovMod = 0.25f;
+	DirectX::BoundingSphere mSceneBounds;
+
+	float mLightNearZ = 0.0f;
+	float mLightFarZ = 0.0f;
+	XMFLOAT3 mLightPosW;
+	XMFLOAT4X4 mLightView = MathHelper::Identity4x4();
+	XMFLOAT4X4 mLightProj = MathHelper::Identity4x4();
+	XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
+
+	float mLightRotationAngle = 0.0f;
+	XMFLOAT3 mBaseLightDirections[3] = {
+		XMFLOAT3(0.57735f, -0.57735f, 0.57735f),
+		XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
+		XMFLOAT3(0.0f, -0.707f, -0.707f)
+	};
+	XMFLOAT3 mRotatedLightDirections[3];
+
 
 protected:
 
