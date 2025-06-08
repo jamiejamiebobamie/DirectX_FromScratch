@@ -163,6 +163,8 @@ private:
 
 	std::unique_ptr<ShadowMap> mShadowMap;
 
+	RenderItem* mSunRitem = nullptr;
+
 	DirectX::BoundingSphere mSceneBounds;
 
 	float mLightNearZ = 0.0f;

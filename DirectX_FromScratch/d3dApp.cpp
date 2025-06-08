@@ -310,7 +310,7 @@ void d3dApp::LoadTextures()
 		L"Textures/tile_nmap.dds",
 		L"Textures/white1x1.dds",
 		L"Textures/default_nmap.dds",
-		L"Textures/desertcube1024.dds"
+		L"Textures/snowcube1024.dds"
 	};
 
 	for (int i = 0; i < (int)texNames.size(); ++i)
@@ -897,11 +897,22 @@ void d3dApp::BuildMaterials()
 	sky->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	sky->Roughness = 1.0f;
 
+	auto sun = std::make_unique<Material>();
+	sun->Name = "sun";
+	sun->MatCBIndex = 5;
+	sun->DiffuseSrvHeapIndex = 4;
+	sun->NormalSrvHeapIndex = 5;
+	sun->DiffuseAlbedo = XMFLOAT4(100.0f, 100.0f, 100.0f, 1.0f);
+	sun->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	sun->Roughness = 0.0f;
+
 	mMaterials["bricks0"] = std::move(bricks0);
 	mMaterials["tile0"] = std::move(tile0);
 	mMaterials["mirror0"] = std::move(mirror0);
 	mMaterials["skullMat"] = std::move(skullMat);
 	mMaterials["sky"] = std::move(sky);
+	mMaterials["sun"] = std::move(sun);
+
 }
 
 void d3dApp::BuildRenderItems()
@@ -976,8 +987,44 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 
+
+
+	XMVECTOR lightDir = XMLoadFloat3(&mBaseLightDirections[0]);
+	XMVECTOR lightPos = -2.0f * mSceneBounds.Radius * lightDir;
+
+
+	std:wstring text = L"***Radius: ";
+	text += std::to_wstring(mSceneBounds.Radius);
+	OutputDebugString(text.c_str());
+
+	XMFLOAT4 sunRitemWorld;
+	XMStoreFloat4(&sunRitemWorld, lightPos);
+
+	//text = L"***lightPos: ";
+	//text += std::to_wstring(sunRitemWorld.x);
+	//text += L"\n";
+	//text += std::to_wstring(sunRitemWorld.y);
+	//text += L"\n";
+	//text += std::to_wstring(sunRitemWorld.z);
+	//OutputDebugString(text.c_str());
+
+	auto sunRitem = std::make_unique<RenderItem>();
+	sunRitem->TexTransform = MathHelper::Identity4x4(); 
+	XMStoreFloat4x4(&sunRitem->World, XMMatrixTranslation(sunRitemWorld.x, sunRitemWorld.y, sunRitemWorld.z));
+	sunRitem->ObjCBIndex = 5;
+	sunRitem->Mat = mMaterials["sun"].get();
+	sunRitem->Geo = mGeometries["shapeGeo"].get();
+	sunRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	sunRitem->IndexCount = sunRitem->Geo->DrawArgs["sphere"].IndexCount;
+	sunRitem->StartIndexLocation = sunRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
+	sunRitem->BaseVertexLocation = sunRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+	mSunRitem = sunRitem.get();
+
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(sunRitem.get());
+	mAllRitems.push_back(std::move(sunRitem));
+
 	XMMATRIX brickTexTransform = XMMatrixScaling(1.5f, 2.0f, 1.0f);
-	UINT objCBIndex = 5;
+	UINT objCBIndex = 6;
 	for (int i = 0; i < 5; ++i)
 	{
 		auto leftCylRitem = std::make_unique<RenderItem>();
@@ -1322,7 +1369,7 @@ void d3dApp::Update(const GameTimer& gt)
 	// Animate the lights (and hence shadows).
 	//
 
-	mLightRotationAngle += 0.01f * gt.DeltaTime();
+	mLightRotationAngle += 0.1f * gt.DeltaTime();
 
 	XMMATRIX R = XMMatrixRotationY(mLightRotationAngle);
 	for (int i = 0; i < 3; ++i)
@@ -1331,6 +1378,17 @@ void d3dApp::Update(const GameTimer& gt)
 		lightDir = XMVector3TransformNormal(lightDir, R);
 		XMStoreFloat3(&mRotatedLightDirections[i], lightDir);
 	}
+
+
+	// update sun position after light dir rotation
+	XMVECTOR lightDir = XMLoadFloat3(&mRotatedLightDirections[0]);
+	XMVECTOR lightPos = -2.0f * mSceneBounds.Radius * lightDir;
+	XMFLOAT4 sunRitemWorld;
+	XMStoreFloat4(&sunRitemWorld, lightPos);
+	XMMATRIX sunOffset = XMMatrixTranslation(sunRitemWorld.x, sunRitemWorld.y, sunRitemWorld.z);
+	XMStoreFloat4x4(&mSunRitem->World, sunOffset);
+	mSunRitem->NumFramesDirty = gNumFrameResources;
+	// - - - - - - - - - - - - - - - - - - - - - -
 
 	AnimateMaterials(gt);
 	UpdateObjectCBs(gt);
