@@ -75,15 +75,15 @@ float4 PS(VertexOut pin) : SV_Target
     uint diffuseMapIndex = matData.DiffuseMapIndex;
     uint normalMapIndex = matData.NormalMapIndex;
 	
-    float v = (10.0f - length(pin.PosW - float3(0.0f, 5.0f, 0.0f))) / 10.0f;
+    float range = 2.5f * ((sin(gTotalTime) + cos(gTotalTime) * cos(gTotalTime) + 1.0f) / 0.5f);
+    float v = (range - length(pin.PosW - float3(0.0f, 5.0f, 0.0f))) / 5.0f;
     float sampleAmt = saturate(v);
-    float4 projTex = gTextureMaps[0].Sample(gsamAnisotropicWrap, pin.ShadowPosH.xy) * sampleAmt;
-    //lerp(0.0f, 0.5f, sampleAmt);
+    float4 projTex = gTextureMaps[6].Sample(gsamAnisotropicWrap, pin.ShadowPosH.xy) * sampleAmt;
     // gsamAnisotropicWrap gsamProjectorBorder
 
 
     // Dynamically look up the texture in the array.
-    diffuseAlbedo *= saturate(gTextureMaps[diffuseMapIndex].Sample(gsamAnisotropicWrap, pin.TexC) + projTex);
+    diffuseAlbedo *= saturate(gTextureMaps[diffuseMapIndex].Sample(gsamAnisotropicWrap, pin.TexC) - projTex);
 
 #ifdef ALPHA_TEST
     // Discard pixel if texture alpha < 0.1.  We do this test as soon 

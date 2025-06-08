@@ -299,6 +299,7 @@ void d3dApp::LoadTextures()
 		"tileNormalMap",
 		"defaultDiffuseMap",
 		"defaultNormalMap",
+		"waterDiffuseMap",
 		"skyCubeMap"
 	};
 
@@ -310,6 +311,7 @@ void d3dApp::LoadTextures()
 		L"Textures/tile_nmap.dds",
 		L"Textures/white1x1.dds",
 		L"Textures/default_nmap.dds",
+		L"Textures/grass.dds",
 		L"Textures/desertcube1024.dds"
 	};
 
@@ -377,7 +379,7 @@ void d3dApp::BuildDescriptorHeaps()
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 14;
+	srvHeapDesc.NumDescriptors = 15;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -394,7 +396,8 @@ void d3dApp::BuildDescriptorHeaps()
 		mTextures["tileDiffuseMap"]->Resource,
 		mTextures["tileNormalMap"]->Resource,
 		mTextures["defaultDiffuseMap"]->Resource,
-		mTextures["defaultNormalMap"]->Resource
+		mTextures["defaultNormalMap"]->Resource,
+		mTextures["waterDiffuseMap"]->Resource
 	};
 
 	auto skyCubeMap = mTextures["skyCubeMap"]->Resource;
