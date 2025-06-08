@@ -49,6 +49,8 @@ SamplerState gsamLinearClamp : register(s3);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
 SamplerComparisonState gsamShadow : register(s6);
+SamplerState gsamProjectorBorder : register(s7);
+
 
 // Constant data that varies per frame.
 cbuffer cbPerObject : register(b0)

@@ -35,7 +35,7 @@ d3dApp::d3dApp(HINSTANCE hInstance) : mhAppInst(hInstance)
 	// the world space origin.  In general, you need to loop over every world space vertex
 	// position and compute the bounding sphere.
 	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	mSceneBounds.Radius = sqrtf(10.0f * 10.0f + 15.0f * 15.0f);
+	mSceneBounds.Radius = sqrtf(25.0f);//10.0f * 10.0f + 15.0f * 15.0f);
 	//mSceneBounds.Radius = sqrtf(20.0f * 20.0f + 30.0f * 30.0f);
 	//mSceneBounds.Radius = sqrtf(20.0f + 30.0f);
 
@@ -1108,7 +1108,7 @@ void d3dApp::DrawSceneToShadowMap()
 	mCommandList->ResourceBarrier(1, &resBarr);
 }
 
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> d3dApp::GetStaticSamplers()
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 8> d3dApp::GetStaticSamplers()
 {
 	// Applications usually only need a handful of samplers.  So just define them all up front
 	// and keep them available as part of the root signature.  
@@ -1161,7 +1161,7 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> d3dApp::GetStaticSamplers()
 
 	const CD3DX12_STATIC_SAMPLER_DESC shadow(
 		6, // shaderRegister
-		D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT, // filter
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
 		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
 		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
 		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressW
@@ -1170,11 +1170,23 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> d3dApp::GetStaticSamplers()
 		D3D12_COMPARISON_FUNC_LESS_EQUAL,
 		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK);
 
+	const CD3DX12_STATIC_SAMPLER_DESC projector(
+		7, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER, // addressW
+		0.0f,                               // mipLODBias
+		16,                                 // maxAnisotropy
+		D3D12_COMPARISON_FUNC_LESS_EQUAL,
+		D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK	
+	); 
+
 	return {
 		pointWrap, pointClamp,
 		linearWrap, linearClamp,
 		anisotropicWrap, anisotropicClamp,
-		shadow
+		shadow, projector
 	};
 }
 
@@ -1322,7 +1334,7 @@ void d3dApp::Update(const GameTimer& gt)
 	// Animate the lights (and hence shadows).
 	//
 
-	mLightRotationAngle += 0.01f * gt.DeltaTime();
+	mLightRotationAngle += 0.1f * gt.DeltaTime();
 
 	XMMATRIX R = XMMatrixRotationY(mLightRotationAngle);
 	for (int i = 0; i < 3; ++i)
@@ -1559,7 +1571,9 @@ void d3dApp::UpdateShadowTransform(const GameTimer& gt)
 	XMVECTOR lightDir = XMLoadFloat3(&mRotatedLightDirections[0]);
 	XMVECTOR lightPos = -2.0f * mSceneBounds.Radius * lightDir;
 	XMVECTOR targetPos = XMLoadFloat3(&mSceneBounds.Center);
-	XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMVECTOR lightRight = XMVector3Cross(lightDir, up);
+	XMVECTOR lightUp = XMVector3Cross(lightRight, lightDir);
 	XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
 
 	XMStoreFloat3(&mLightPosW, lightPos);
