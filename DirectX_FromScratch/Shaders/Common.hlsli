@@ -125,7 +125,6 @@ float CalcShadowFactor(float4 shadowPosH)
 
     // Texel size.
     float dx = 1.0f / (float) width;
-
     float percentLit = 0.0f;
     const float2 offsets[9] =
     {
@@ -140,7 +139,28 @@ float CalcShadowFactor(float4 shadowPosH)
         percentLit += gShadowMap.SampleCmpLevelZero(gsamShadow,
             shadowPosH.xy + offsets[i], depth).r;
     }
-    
     return percentLit / 9.0f;
+    
+        /*
+    float percentLit = 0.0f;
+    const float2 offsets[25] =
+    {
+        float2(-2 * dx, -2 * dx), float2(-dx, -2 * dx), float2(0.0f, -2 * dx), float2(dx, -2 * dx), float2(2 * dx, -2 * dx),
+        float2(-2*dx, -dx), float2(-dx, -dx), float2(0.0f, -dx), float2(dx, -dx), float2(2*dx, -dx), 
+        float2(-2 * dx, 0.0f), float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f), float2(2 * dx, 0.0f),
+        float2(-2 * dx, dx), float2(-dx, +dx), float2(0.0f, +dx), float2(dx, +dx), float2(2 * dx, dx),
+        float2(-2 * dx, 2 * dx), float2(-dx, 2 * dx), float2(0.0f, 2 * dx), float2(dx, 2 * dx), float2(2 * dx, 2 * dx)
+    };
+
+    [unroll]
+    for (int i = 0; i < 25; ++i)
+    {
+        percentLit += gShadowMap.SampleCmpLevelZero(gsamShadow,
+            shadowPosH.xy + offsets[i], depth).r;
+    }
+    
+    return percentLit / 25.0f;
+ */
+
 }
 

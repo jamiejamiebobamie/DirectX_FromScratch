@@ -36,6 +36,9 @@ d3dApp::d3dApp(HINSTANCE hInstance) : mhAppInst(hInstance)
 	// position and compute the bounding sphere.
 	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	mSceneBounds.Radius = sqrtf(10.0f * 10.0f + 15.0f * 15.0f);
+	//mSceneBounds.Radius = sqrtf(20.0f * 20.0f + 30.0f * 30.0f);
+	//mSceneBounds.Radius = sqrtf(20.0f + 30.0f);
+
 }
 
 d3dApp::~d3dApp()
@@ -91,9 +94,10 @@ bool d3dApp::Initialize()
 
 	mCamera.SetPosition(0.0f, 2.0f, -15.0f);
 
-	mShadowMap = std::make_unique<ShadowMap>(md3dDevice.Get(), 2048, 2048);
-
-
+	mShadowMap = std::make_unique<ShadowMap>(md3dDevice.Get(),
+		2024, 2024);
+		//16192, 16192);
+		//20000, 20000);
 
 	LoadTextures();
 	BuildRootSignature();

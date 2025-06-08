@@ -122,7 +122,7 @@ void ShadowMap::BuildResource()
 	optClear.DepthStencil.Depth = 1.0f;
 	optClear.DepthStencil.Stencil = 0;
 
-	auto heapProps =  CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
 	ThrowIfFailed(md3dDevice->CreateCommittedResource(
 		&heapProps,
