@@ -311,7 +311,7 @@ void d3dApp::LoadTextures()
 		L"Textures/tile_nmap.dds",
 		L"Textures/white1x1.dds",
 		L"Textures/default_nmap.dds",
-		L"Textures/grass.dds",
+		L"Textures/ugly_sun_spot.dds",
 		L"Textures/desertcube1024.dds"
 	};
 
@@ -1337,7 +1337,7 @@ void d3dApp::Update(const GameTimer& gt)
 	// Animate the lights (and hence shadows).
 	//
 
-	mLightRotationAngle += 0.1f * gt.DeltaTime();
+	mLightRotationAngle += 0.5f * gt.DeltaTime();
 
 	XMMATRIX R = XMMatrixRotationY(mLightRotationAngle);
 	for (int i = 0; i < 3; ++i)

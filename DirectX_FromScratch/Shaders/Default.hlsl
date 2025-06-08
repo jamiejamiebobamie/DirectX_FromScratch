@@ -75,10 +75,12 @@ float4 PS(VertexOut pin) : SV_Target
     uint diffuseMapIndex = matData.DiffuseMapIndex;
     uint normalMapIndex = matData.NormalMapIndex;
 	
-    float range = 2.5f * ((sin(gTotalTime) + cos(gTotalTime) * cos(gTotalTime) + 1.0f) / 0.5f);
+    float maxRange = 10.0f;
+    float range = maxRange * ((sin(gTotalTime) + cos(gTotalTime) * cos(gTotalTime) + 1.0f) / 0.5f);
     float v = (range - length(pin.PosW - float3(0.0f, 5.0f, 0.0f))) / 5.0f;
     float sampleAmt = saturate(v);
-    float4 projTex = gTextureMaps[6].Sample(gsamAnisotropicWrap, pin.ShadowPosH.xy) * sampleAmt;
+    float4 projTex = gTextureMaps[6].Sample(gsamAnisotropicWrap, pin.ShadowPosH.xy) * sampleAmt * float4(1.0f, 0.0f, 0.2f, 1.0f);
+    projTex += gTextureMaps[6].Sample(gsamAnisotropicWrap, pin.ShadowPosH.xy + float2(-0.5f,0.5f)) * sampleAmt * float4(0.0f, 1.0f, 0.2f, 1.0f);
     // gsamAnisotropicWrap gsamProjectorBorder
 
 
