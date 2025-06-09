@@ -14,6 +14,7 @@ struct VertexIn
 struct VertexOut
 {
     float4 PosH : SV_POSITION;
+    float3 PosW : POSITION1;
     float2 TexC : TEXCOORD;
 };
 
@@ -21,8 +22,12 @@ VertexOut VS(VertexIn vin)
 {
     VertexOut vout = (VertexOut) 0.0f;
 
-    // Already in homogeneous clip space.
-    vout.PosH = float4(vin.PosL, 1.0f);
+    // Transform to world space.
+    float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
+    vout.PosW = posW.xyz;
+    
+    // Transform to homogeneous clip space.
+    vout.PosH = mul(posW, gViewProj);
 	
     vout.TexC = vin.TexC;
 	
@@ -31,11 +36,12 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float3 mapSample = gShadowMap.Sample(gsamLinearWrap, pin.TexC).rrr;
+    float3 look = normalize(pin.PosW - gPointLightPosW);
+    
+    //float3 mapSample = gShadowMap.Sample(look).rrr;
+    //clip(mapSample.r > 0.93f ? -1.0f : 1.0f); // remove white background
 	
-    clip(mapSample.r > 0.93f ? -1.0f : 1.0f); // remove white background
-	
-    return float4(mapSample, 1.0f);
+    return float4(gShadowMap.Sample(gsamLinearWrap, look).rrr, 1.0f);
 }
 
 

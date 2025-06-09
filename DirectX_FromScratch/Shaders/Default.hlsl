@@ -2,19 +2,6 @@
 // Default.hlsl by Frank Luna (C) 2015 All Rights Reserved.
 //***************************************************************************************
 
-// Defaults for number of lights.
-#ifndef NUM_DIR_LIGHTS
-#define NUM_DIR_LIGHTS 3
-#endif
-
-#ifndef NUM_POINT_LIGHTS
-#define NUM_POINT_LIGHTS 0
-#endif
-
-#ifndef NUM_SPOT_LIGHTS
-#define NUM_SPOT_LIGHTS 0
-#endif
-
 // Include common HLSL code.
 #include "Common.hlsli"
 
@@ -102,7 +89,19 @@ float4 PS(VertexOut pin) : SV_Target
 
     // Only the first light casts a shadow.
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
-    shadowFactor[0] = CalcShadowFactor(pin.ShadowPosH);
+    //shadowFactor[0] = CalcShadowFactor(float4(pin.PosW, 1.0f));
+    //pin.ShadowPosH);
+    
+    
+    
+
+    float3 look = normalize(pin.PosW - gPointLightPosW);
+    float imgDepth = gShadowMap.Sample(gsamPointWrap, look).r;
+    float dist = distance(pin.PosW, gPointLightPosW);
+    float depth = dist / (5.0f - 0.1f); // scale by far - near plane
+
+    
+    
 
     const float shininess = (1.0f - roughness) * normalMapSample.a;
     Material mat = { diffuseAlbedo, fresnelR0, shininess };
@@ -119,8 +118,16 @@ float4 PS(VertexOut pin) : SV_Target
 	
     // Common convention to take alpha from diffuse albedo.
     litColor.a = diffuseAlbedo.a;
+    
+    return lerp(float4(0.0f, 0.0f, 0.0f, 1.0f), litColor, imgDepth);
 
-    return litColor;
+  //  return lerp(litColor * 0.0001f, litColor, imgDepth);
+    //depth > imgDepth ? litColor * 0.3f : litColor;
+     //litColor + float4(imgDepth, 1.0f);
+    //float4(imgDepth, 1.0f);
+    //litColor - float4(imgDepth, 1.0f); //
+    //imgDepth;
+    //litColor;
 }
 
 

@@ -12,7 +12,8 @@
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
 #include "Camera.h"
-#include "ShadowMap.h"
+//#include "ShadowMap.h"
+#include "CubeRenderTarget.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -33,6 +34,8 @@ enum class RenderLayer : int
 };
 
 extern const int gNumFrameResources;
+
+const UINT CubeMapSize = 2048;//512;
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
@@ -113,6 +116,11 @@ private:
 	void BuildRenderItems();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 	void DrawSceneToShadowMap();
+	void BuildCubeFaceCamera(float x, float y, float z);
+	//void BuildCubeDepthStencil();
+	void UpdateCubeMapFacePassCBs();
+
+	void DrawSceneToCubeMap();
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 
@@ -127,6 +135,11 @@ private:
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 
 	ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
+
+	ComPtr<ID3D12Resource> mCubeDepthStencilBuffer;
+
+	std::unique_ptr<CubeRenderTarget> mDynamicCubeMap = nullptr;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mCubeDSV;
 
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
 	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
@@ -153,17 +166,19 @@ private:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 
 	PassConstants mMainPassCB;  // index 0 of pass cbuffer.
-	PassConstants mShadowPassCB;// index 1 of pass cbuffer.
+	//PassConstants mShadowPassCB;// index 1 of pass cbuffer.
 
 	POINT mLastMousePos;
 
 	Camera mCamera;
+	Camera mCubeMapCamera[6];
 
 	bool mIsOrtho = true;
 
-	std::unique_ptr<ShadowMap> mShadowMap;
+	//std::unique_ptr<ShadowMap> mShadowMap;
 
 	RenderItem* mSunRitem = nullptr;
+	RenderItem* mCubMapRitem = nullptr;
 
 	DirectX::BoundingSphere mSceneBounds;
 
@@ -172,7 +187,7 @@ private:
 	XMFLOAT3 mLightPosW;
 	XMFLOAT4X4 mLightView = MathHelper::Identity4x4();
 	XMFLOAT4X4 mLightProj = MathHelper::Identity4x4();
-	XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
+	//XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
 
 	float mLightRotationAngle = 0.0f;
 	XMFLOAT3 mBaseLightDirections[3] = {

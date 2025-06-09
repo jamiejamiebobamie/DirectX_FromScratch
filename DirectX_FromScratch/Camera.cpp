@@ -134,6 +134,21 @@ void Camera::SetLens(float fovY, float aspect, float zn, float zf)
 	XMStoreFloat4x4(&mProj, P);
 }
 
+void Camera::SetLensOrtho(float fovY, float aspect, float zn, float zf)
+{
+	// cache properties
+	mFovY = fovY;
+	mAspect = aspect;
+	mNearZ = zn;
+	mFarZ = zf;
+
+	mNearWindowHeight = 2.0f * mNearZ * tanf(0.5f * mFovY);
+	mFarWindowHeight = 2.0f * mFarZ * tanf(0.5f * mFovY);
+
+	XMMATRIX P = XMMatrixOrthographicLH(mNearWindowHeight, mFarWindowHeight, mNearZ, mFarZ);
+	XMStoreFloat4x4(&mProj, P);
+}
+
 void Camera::LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp)
 {
 	XMVECTOR L = XMVector3Normalize(XMVectorSubtract(target, pos));

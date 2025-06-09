@@ -33,6 +33,9 @@ struct PassConstants // constant buffer data for each frame
     float DeltaTime = 0.0f;
 
     DirectX::XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
+    DirectX::XMFLOAT3 PointLightPosW = { 0.0f, 0.0f, 0.0f };
+    float cbPerObjectPad2 = 0.0f;
+
 
     // Indices [0, NUM_DIR_LIGHTS) are directional lights;
     // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;

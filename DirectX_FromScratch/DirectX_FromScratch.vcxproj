@@ -146,6 +146,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="CubeRenderTarget.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="d3dx12_barriers.h" />
     <ClInclude Include="d3dx12_check_feature_support.h" />
@@ -173,6 +174,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="CubeRenderTarget.cpp" />
     <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="DirectX_FromScratch.cpp" />

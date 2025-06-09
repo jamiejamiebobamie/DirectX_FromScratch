@@ -35,9 +35,9 @@ d3dApp::d3dApp(HINSTANCE hInstance) : mhAppInst(hInstance)
 	// the world space origin.  In general, you need to loop over every world space vertex
 	// position and compute the bounding sphere.
 	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	mSceneBounds.Radius = sqrtf(10.0f * 10.0f + 15.0f * 15.0f);
+	//mSceneBounds.Radius = sqrtf(10.0f * 10.0f + 15.0f * 15.0f);
 	//mSceneBounds.Radius = sqrtf(20.0f * 20.0f + 30.0f * 30.0f);
-	//mSceneBounds.Radius = sqrtf(20.0f + 30.0f);
+	mSceneBounds.Radius = 2.5f;//sqrtf(20.0f + 30.0f);
 
 }
 
@@ -92,12 +92,15 @@ bool d3dApp::Initialize()
 	// Reset the command list to prep for initialization commands.
 	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
-	mCamera.SetPosition(0.0f, 2.0f, -15.0f);
+	mCamera.SetPosition(0.0f, 20.0f, 0.0f);
+	mCamera.Pitch(MathHelper::Pi * 0.5f);
 
-	mShadowMap = std::make_unique<ShadowMap>(md3dDevice.Get(),
-		2024, 2024);
+	//mShadowMap = std::make_unique<ShadowMap>(md3dDevice.Get(), 2024, 2024);
 		//16192, 16192);
 		//20000, 20000);
+
+	mDynamicCubeMap = std::make_unique<CubeRenderTarget>(md3dDevice.Get(),
+		CubeMapSize, CubeMapSize, DXGI_FORMAT_R24G8_TYPELESS);
 
 	LoadTextures();
 	BuildRootSignature();
@@ -109,6 +112,8 @@ bool d3dApp::Initialize()
 	BuildRenderItems();
 	BuildFrameResources();
 	BuildPSOs();
+
+	BuildCubeFaceCamera(mCubMapRitem->World._41, mCubMapRitem->World._42, mCubMapRitem->World._43);
 
 	// Execute the initialization commands.
 	ThrowIfFailed(mCommandList->Close());
@@ -281,7 +286,7 @@ void d3dApp::CreateRtvAndDsvDescriptorHeaps()
 		&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
 
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
-	dsvHeapDesc.NumDescriptors = 2;
+	dsvHeapDesc.NumDescriptors = 7;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	dsvHeapDesc.NodeMask = 0;
@@ -377,7 +382,7 @@ void d3dApp::BuildDescriptorHeaps()
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 14;
+	srvHeapDesc.NumDescriptors = 25;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -415,7 +420,7 @@ void d3dApp::BuildDescriptorHeaps()
 		hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
 	}
 
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE; // D3D12_SRV_DIMENSION_TEXTURECUBE;
 	srvDesc.TextureCube.MostDetailedMip = 0;
 	srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
 	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
@@ -439,17 +444,22 @@ void d3dApp::BuildDescriptorHeaps()
 	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
 	nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
 
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
 
-	mShadowMap->BuildDescriptors(
+	CD3DX12_CPU_DESCRIPTOR_HANDLE cubeDsvHandles[6];
+	for (int i = 0; i < 6; ++i)
+		cubeDsvHandles[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1 + i, mDsvDescriptorSize);
+
+	// Dynamic cubemap SRV is after the sky SRV.
+	mDynamicCubeMap->BuildDescriptors(
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize),
 		CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize),
-		CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, mDsvDescriptorSize));
+		cubeDsvHandles);
 }
 
 void d3dApp::BuildShadersAndInputLayout()
@@ -846,7 +856,7 @@ void d3dApp::BuildFrameResources()
 	for (int i = 0; i < gNumFrameResources; ++i)
 	{
 		mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
-			2, (UINT)mAllRitems.size(), (UINT)mMaterials.size()));
+			7, (UINT)mAllRitems.size(), (UINT)mMaterials.size()));
 	}
 }
 
@@ -917,10 +927,11 @@ void d3dApp::BuildMaterials()
 
 void d3dApp::BuildRenderItems()
 {
+	int ObjCBIndex = 0;
 	auto skyRitem = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&skyRitem->World, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
 	skyRitem->TexTransform = MathHelper::Identity4x4();
-	skyRitem->ObjCBIndex = 0;
+	skyRitem->ObjCBIndex = ObjCBIndex++;
 	skyRitem->Mat = mMaterials["sky"].get();
 	skyRitem->Geo = mGeometries["shapeGeo"].get();
 	skyRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -931,24 +942,24 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Sky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
-	auto quadRitem = std::make_unique<RenderItem>();
-	quadRitem->World = MathHelper::Identity4x4();
-	quadRitem->TexTransform = MathHelper::Identity4x4();
-	quadRitem->ObjCBIndex = 1;
-	quadRitem->Mat = mMaterials["bricks0"].get();
-	quadRitem->Geo = mGeometries["shapeGeo"].get();
-	quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
-	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
-	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+	//auto quadRitem = std::make_unique<RenderItem>();
+	//quadRitem->World = MathHelper::Identity4x4();
+	//quadRitem->TexTransform = MathHelper::Identity4x4();
+	//quadRitem->ObjCBIndex = 1;
+	//quadRitem->Mat = mMaterials["bricks0"].get();
+	//quadRitem->Geo = mGeometries["shapeGeo"].get();
+	//quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
+	//quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
+	//quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
 
-	mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
-	mAllRitems.push_back(std::move(quadRitem));
+	//mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
+	//mAllRitems.push_back(std::move(quadRitem));
 
 	auto boxRitem = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 1.0f, 2.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
 	XMStoreFloat4x4(&boxRitem->TexTransform, XMMatrixScaling(1.0f, 0.5f, 1.0f));
-	boxRitem->ObjCBIndex = 2;
+	boxRitem->ObjCBIndex = ObjCBIndex++;
 	boxRitem->Mat = mMaterials["bricks0"].get();
 	boxRitem->Geo = mGeometries["shapeGeo"].get();
 	boxRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -962,7 +973,7 @@ void d3dApp::BuildRenderItems()
 	auto skullRitem = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&skullRitem->World, XMMatrixScaling(0.4f, 0.4f, 0.4f) * XMMatrixTranslation(0.0f, 1.0f, 0.0f));
 	skullRitem->TexTransform = MathHelper::Identity4x4();
-	skullRitem->ObjCBIndex = 3;
+	skullRitem->ObjCBIndex = ObjCBIndex++;
 	skullRitem->Mat = mMaterials["skullMat"].get();
 	skullRitem->Geo = mGeometries["skullGeo"].get();
 	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -976,7 +987,7 @@ void d3dApp::BuildRenderItems()
 	auto gridRitem = std::make_unique<RenderItem>();
 	gridRitem->World = MathHelper::Identity4x4();
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
-	gridRitem->ObjCBIndex = 4;
+	gridRitem->ObjCBIndex = ObjCBIndex++;
 	gridRitem->Mat = mMaterials["tile0"].get();
 	gridRitem->Geo = mGeometries["shapeGeo"].get();
 	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1000,18 +1011,10 @@ void d3dApp::BuildRenderItems()
 	XMFLOAT4 sunRitemWorld;
 	XMStoreFloat4(&sunRitemWorld, lightPos);
 
-	//text = L"***lightPos: ";
-	//text += std::to_wstring(sunRitemWorld.x);
-	//text += L"\n";
-	//text += std::to_wstring(sunRitemWorld.y);
-	//text += L"\n";
-	//text += std::to_wstring(sunRitemWorld.z);
-	//OutputDebugString(text.c_str());
-
 	auto sunRitem = std::make_unique<RenderItem>();
 	sunRitem->TexTransform = MathHelper::Identity4x4(); 
 	XMStoreFloat4x4(&sunRitem->World, XMMatrixTranslation(sunRitemWorld.x, sunRitemWorld.y, sunRitemWorld.z));
-	sunRitem->ObjCBIndex = 5;
+	sunRitem->ObjCBIndex = ObjCBIndex++;
 	sunRitem->Mat = mMaterials["sun"].get();
 	sunRitem->Geo = mGeometries["shapeGeo"].get();
 	sunRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1023,8 +1026,26 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(sunRitem.get());
 	mAllRitems.push_back(std::move(sunRitem));
 
+
+
+	auto cubMapRitem = std::make_unique<RenderItem>();
+	cubMapRitem->TexTransform = MathHelper::Identity4x4();
+	XMStoreFloat4x4(&cubMapRitem->World, XMMatrixTranslation(sunRitemWorld.x, sunRitemWorld.y, sunRitemWorld.z));
+	cubMapRitem->ObjCBIndex = ObjCBIndex++;
+	cubMapRitem->Mat = mMaterials["skullMat"].get();
+	cubMapRitem->Geo = mGeometries["shapeGeo"].get();
+	cubMapRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	cubMapRitem->IndexCount = cubMapRitem->Geo->DrawArgs["box"].IndexCount;
+	cubMapRitem->StartIndexLocation = cubMapRitem->Geo->DrawArgs["box"].StartIndexLocation;
+	cubMapRitem->BaseVertexLocation = cubMapRitem->Geo->DrawArgs["box"].BaseVertexLocation;
+	mCubMapRitem = cubMapRitem.get();
+
+
+	mRitemLayer[(int)RenderLayer::Debug].push_back(cubMapRitem.get());
+	mAllRitems.push_back(std::move(cubMapRitem));
+
 	XMMATRIX brickTexTransform = XMMatrixScaling(1.5f, 2.0f, 1.0f);
-	UINT objCBIndex = 6;
+	UINT objCBIndex = ObjCBIndex;
 	for (int i = 0; i < 5; ++i)
 	{
 		auto leftCylRitem = std::make_unique<RenderItem>();
@@ -1115,45 +1136,45 @@ void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vect
 	}
 }
 
-void d3dApp::DrawSceneToShadowMap()
-{
-	auto vp = mShadowMap->Viewport();
-	mCommandList->RSSetViewports(1, &vp);
-	auto sr = mShadowMap->ScissorRect();
-	mCommandList->RSSetScissorRects(1, &sr);
-
-	auto resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
-		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-	// Change to DEPTH_WRITE.
-	mCommandList->ResourceBarrier(1, &resBarr);
-
-	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-
-	// Clear the back buffer and depth buffer.
-	mCommandList->ClearDepthStencilView(mShadowMap->Dsv(),
-		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-
-	// Set null render target because we are only going to draw to
-	// depth buffer.  Setting a null render target will disable color writes
-	// Note the active PSO also must specify a render target count of 0.
-	auto dsv = mShadowMap->Dsv();
-	mCommandList->OMSetRenderTargets(0, nullptr, false, &dsv);
-
-	// Bind the pass constant buffer for the shadow map pass.
-	auto passCB = mCurrFrameResource->PassCB->Resource();
-	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
-	mCommandList->SetGraphicsRootConstantBufferView(1, passCBAddress);
-
-	mCommandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
-
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
-
-	// Change back to GENERIC_READ so we can read the texture in a shader.
-	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
-		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
-	mCommandList->ResourceBarrier(1, &resBarr);
-}
+//void d3dApp::DrawSceneToShadowMap()
+//{
+//	auto vp = mShadowMap->Viewport();
+//	mCommandList->RSSetViewports(1, &vp);
+//	auto sr = mShadowMap->ScissorRect();
+//	mCommandList->RSSetScissorRects(1, &sr);
+//
+//	auto resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+//		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+//
+//	// Change to DEPTH_WRITE.
+//	mCommandList->ResourceBarrier(1, &resBarr);
+//
+//	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+//
+//	// Clear the back buffer and depth buffer.
+//	mCommandList->ClearDepthStencilView(mShadowMap->Dsv(),
+//		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+//
+//	// Set null render target because we are only going to draw to
+//	// depth buffer.  Setting a null render target will disable color writes
+//	// Note the active PSO also must specify a render target count of 0.
+//	auto dsv = mShadowMap->Dsv();
+//	mCommandList->OMSetRenderTargets(0, nullptr, false, &dsv);
+//
+//	// Bind the pass constant buffer for the shadow map pass.
+//	auto passCB = mCurrFrameResource->PassCB->Resource();
+//	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
+//	mCommandList->SetGraphicsRootConstantBufferView(1, passCBAddress);
+//
+//	mCommandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
+//
+//	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
+//
+//	// Change back to GENERIC_READ so we can read the texture in a shader.
+//	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+//		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
+//	mCommandList->ResourceBarrier(1, &resBarr);
+//}
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> d3dApp::GetStaticSamplers()
 {
@@ -1369,7 +1390,7 @@ void d3dApp::Update(const GameTimer& gt)
 	// Animate the lights (and hence shadows).
 	//
 
-	mLightRotationAngle += 0.1f * gt.DeltaTime();
+	mLightRotationAngle += 1.8f * gt.DeltaTime();
 
 	XMMATRIX R = XMMatrixRotationY(mLightRotationAngle);
 	for (int i = 0; i < 3; ++i)
@@ -1388,14 +1409,21 @@ void d3dApp::Update(const GameTimer& gt)
 	XMMATRIX sunOffset = XMMatrixTranslation(sunRitemWorld.x, sunRitemWorld.y, sunRitemWorld.z);
 	XMStoreFloat4x4(&mSunRitem->World, sunOffset);
 	mSunRitem->NumFramesDirty = gNumFrameResources;
+
+
+
+	XMStoreFloat4x4(&mCubMapRitem->World, sunOffset);
+	mCubMapRitem->NumFramesDirty = gNumFrameResources;
+	BuildCubeFaceCamera(mCubMapRitem->World._41, mCubMapRitem->World._42, mCubMapRitem->World._43);
+	
 	// - - - - - - - - - - - - - - - - - - - - - -
 
 	AnimateMaterials(gt);
 	UpdateObjectCBs(gt);
 	UpdateMaterialBuffer(gt);
-	UpdateShadowTransform(gt);
+	//UpdateShadowTransform(gt);
 	UpdateMainPassCB(gt);
-	UpdateShadowPassCB(gt);
+	//UpdateShadowPassCB(gt);
 }
 
 void d3dApp::Draw(const GameTimer& gt)
@@ -1428,7 +1456,8 @@ void d3dApp::Draw(const GameTimer& gt)
 	// The root signature knows how many descriptors are expected in the table.
 	mCommandList->SetGraphicsRootDescriptorTable(4, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-	DrawSceneToShadowMap();
+	//DrawSceneToShadowMap();
+	DrawSceneToCubeMap();
 
 	mCommandList->RSSetViewports(1, &mScreenViewport);
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -1462,8 +1491,8 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->SetPipelineState(mPSOs["opaque"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 
-	mCommandList->SetPipelineState(mPSOs["debug"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Debug]);
+	//mCommandList->SetPipelineState(mPSOs["debug"].Get());
+	//DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Debug]);
 
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
@@ -1648,7 +1677,7 @@ void d3dApp::UpdateShadowTransform(const GameTimer& gt)
 	XMMATRIX S = lightView * lightProj * T;
 	XMStoreFloat4x4(&mLightView, lightView);
 	XMStoreFloat4x4(&mLightProj, lightProj);
-	XMStoreFloat4x4(&mShadowTransform, S);
+	//XMStoreFloat4x4(&mShadowTransform, S);
 }
 
 void d3dApp::UpdateMainPassCB(const GameTimer& gt)
@@ -1664,7 +1693,7 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	det = XMMatrixDeterminant(viewProj);
 	XMMATRIX invViewProj = XMMatrixInverse(&det, viewProj);
 
-	XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
+	//XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
 
 	XMStoreFloat4x4(&mMainPassCB.View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&mMainPassCB.InvView, XMMatrixTranspose(invView));
@@ -1672,8 +1701,9 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	XMStoreFloat4x4(&mMainPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-	XMStoreFloat4x4(&mMainPassCB.ShadowTransform, XMMatrixTranspose(shadowTransform));
+	//XMStoreFloat4x4(&mMainPassCB.ShadowTransform, XMMatrixTranspose(shadowTransform));
 	mMainPassCB.EyePosW = mCamera.GetPosition3f();
+	XMStoreFloat3(&mMainPassCB.PointLightPosW, XMVectorSet(mCubMapRitem->World._41, mCubMapRitem->World._42, mCubMapRitem->World._43, 1.0f));
 	mMainPassCB.RenderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
 	mMainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
 	mMainPassCB.NearZ = 1.0f;
@@ -1688,42 +1718,45 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
 	mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
 
+
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
+
+	UpdateCubeMapFacePassCBs();
 }
 
-void d3dApp::UpdateShadowPassCB(const GameTimer& gt)
-{
-	XMMATRIX view = XMLoadFloat4x4(&mLightView);
-	XMMATRIX proj = XMLoadFloat4x4(&mLightProj);
-
-	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-
-	auto det = XMMatrixDeterminant(view);
-	XMMATRIX invView = XMMatrixInverse(&det, view);
-	det = XMMatrixDeterminant(proj);
-	XMMATRIX invProj = XMMatrixInverse(&det, proj);
-	det = XMMatrixDeterminant(viewProj);
-	XMMATRIX invViewProj = XMMatrixInverse(&det, viewProj);
-
-	UINT w = mShadowMap->Width();
-	UINT h = mShadowMap->Height();
-
-	XMStoreFloat4x4(&mShadowPassCB.View, XMMatrixTranspose(view));
-	XMStoreFloat4x4(&mShadowPassCB.InvView, XMMatrixTranspose(invView));
-	XMStoreFloat4x4(&mShadowPassCB.Proj, XMMatrixTranspose(proj));
-	XMStoreFloat4x4(&mShadowPassCB.InvProj, XMMatrixTranspose(invProj));
-	XMStoreFloat4x4(&mShadowPassCB.ViewProj, XMMatrixTranspose(viewProj));
-	XMStoreFloat4x4(&mShadowPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-	mShadowPassCB.EyePosW = mLightPosW;
-	mShadowPassCB.RenderTargetSize = XMFLOAT2((float)w, (float)h);
-	mShadowPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);
-	mShadowPassCB.NearZ = mLightNearZ;
-	mShadowPassCB.FarZ = mLightFarZ;
-
-	auto currPassCB = mCurrFrameResource->PassCB.get();
-	currPassCB->CopyData(1, mShadowPassCB);
-}
+//void d3dApp::UpdateShadowPassCB(const GameTimer& gt)
+//{
+//	XMMATRIX view = XMLoadFloat4x4(&mLightView);
+//	XMMATRIX proj = XMLoadFloat4x4(&mLightProj);
+//
+//	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+//
+//	auto det = XMMatrixDeterminant(view);
+//	XMMATRIX invView = XMMatrixInverse(&det, view);
+//	det = XMMatrixDeterminant(proj);
+//	XMMATRIX invProj = XMMatrixInverse(&det, proj);
+//	det = XMMatrixDeterminant(viewProj);
+//	XMMATRIX invViewProj = XMMatrixInverse(&det, viewProj);
+//
+//	UINT w = mShadowMap->Width();
+//	UINT h = mShadowMap->Height();
+//
+//	XMStoreFloat4x4(&mShadowPassCB.View, XMMatrixTranspose(view));
+//	XMStoreFloat4x4(&mShadowPassCB.InvView, XMMatrixTranspose(invView));
+//	XMStoreFloat4x4(&mShadowPassCB.Proj, XMMatrixTranspose(proj));
+//	XMStoreFloat4x4(&mShadowPassCB.InvProj, XMMatrixTranspose(invProj));
+//	XMStoreFloat4x4(&mShadowPassCB.ViewProj, XMMatrixTranspose(viewProj));
+//	XMStoreFloat4x4(&mShadowPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+//	mShadowPassCB.EyePosW = mLightPosW;
+//	mShadowPassCB.RenderTargetSize = XMFLOAT2((float)w, (float)h);
+//	mShadowPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);
+//	mShadowPassCB.NearZ = mLightNearZ;
+//	mShadowPassCB.FarZ = mLightFarZ;
+//
+//	auto currPassCB = mCurrFrameResource->PassCB.get();
+//	currPassCB->CopyData(1, mShadowPassCB);
+//}
 
 LRESULT d3dApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -2011,3 +2044,157 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	return (INT_PTR)FALSE;
 }
 
+void d3dApp::BuildCubeFaceCamera(float x, float y, float z)
+{
+	// Generate the cube map about the given position.
+	XMFLOAT3 center(x, y, z);
+	XMFLOAT3 worldUp(0.0f, 1.0f, 0.0f);
+
+	// Look along each coordinate axis.
+	XMFLOAT3 targets[6] =
+	{
+		XMFLOAT3(x + 1.0f, y, z), // +X
+		XMFLOAT3(x - 1.0f, y, z), // -X
+		XMFLOAT3(x, y + 1.0f, z), // +Y
+		XMFLOAT3(x, y - 1.0f, z), // -Y
+		XMFLOAT3(x, y, z + 1.0f), // +Z
+		XMFLOAT3(x, y, z - 1.0f)  // -Z
+	};
+
+	// Use world up vector (0,1,0) for all directions except +Y/-Y.  In these cases, we
+	// are looking down +Y or -Y, so we need a different "up" vector.
+	XMFLOAT3 ups[6] =
+	{
+		XMFLOAT3(0.0f, 1.0f, 0.0f),  // +X
+		XMFLOAT3(0.0f, 1.0f, 0.0f),  // -X
+		XMFLOAT3(0.0f, 0.0f, -1.0f), // +Y
+		XMFLOAT3(0.0f, 0.0f, +1.0f), // -Y
+		XMFLOAT3(0.0f, 1.0f, 0.0f),	 // +Z
+		XMFLOAT3(0.0f, 1.0f, 0.0f)	 // -Z
+	};
+
+	for (int i = 0; i < 6; ++i)
+	{
+		mCubeMapCamera[i].LookAt(center, targets[i], ups[i]);
+		mCubeMapCamera[i].SetLens(0.5f * XM_PI, 1.0f, 0.1f, 1000.0f);
+		mCubeMapCamera[i].UpdateViewMatrix();
+	}
+}
+
+//void d3dApp::BuildCubeDepthStencil()
+//{
+//	// Create the depth/stencil buffer and view.
+//	D3D12_RESOURCE_DESC depthStencilDesc;
+//	depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+//	depthStencilDesc.Alignment = 0;
+//	depthStencilDesc.Width = CubeMapSize;
+//	depthStencilDesc.Height = CubeMapSize;
+//	depthStencilDesc.DepthOrArraySize = 1;
+//	depthStencilDesc.MipLevels = 1;
+//	depthStencilDesc.Format = mDepthStencilFormat;
+//	depthStencilDesc.SampleDesc.Count = 1;
+//	depthStencilDesc.SampleDesc.Quality = 0;
+//	depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+//	depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+//
+//	D3D12_CLEAR_VALUE optClear;
+//	optClear.Format = mDepthStencilFormat;
+//	optClear.DepthStencil.Depth = 1.0f;
+//	optClear.DepthStencil.Stencil = 0;
+//	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+//	ThrowIfFailed(md3dDevice->CreateCommittedResource(
+//		&heapProps,
+//		D3D12_HEAP_FLAG_NONE,
+//		&depthStencilDesc,
+//		D3D12_RESOURCE_STATE_COMMON,
+//		&optClear,
+//		IID_PPV_ARGS(mCubeDepthStencilBuffer.GetAddressOf())));
+//
+//	// Create descriptor to mip level 0 of entire resource using the format of the resource.
+//	md3dDevice->CreateDepthStencilView(mCubeDepthStencilBuffer.Get(), nullptr, mCubeDSV);
+//
+//	auto resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mCubeDepthStencilBuffer.Get(),
+//		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+//
+//	// Transition the resource from its initial state to be used as a depth buffer.
+//	mCommandList->ResourceBarrier(1, &resBarr);
+//}
+
+void d3dApp::DrawSceneToCubeMap()
+{
+	auto vp = mDynamicCubeMap->Viewport();
+	mCommandList->RSSetViewports(1, &vp);
+	auto sr = mDynamicCubeMap->ScissorRect();
+	mCommandList->RSSetScissorRects(1, &sr);
+
+	// Change to RENDER_TARGET.
+
+	auto resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mDynamicCubeMap->Resource(),
+		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	mCommandList->ResourceBarrier(1, &resBarr);
+
+	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
+	// For each cube map face.
+	for (int i = 0; i < 6; ++i)
+	{
+		// Clear the back buffer and depth buffer.
+		mCommandList->ClearDepthStencilView(mDynamicCubeMap->Dsv(i), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+		auto dsv = mDynamicCubeMap->Dsv(i);
+		// Specify the buffers we are going to render to.
+		mCommandList->OMSetRenderTargets(0, nullptr, false, &dsv);
+
+		// Bind the pass constant buffer for this cube map face so we use 
+		// the right view/proj matrix for this cube face.
+		auto passCB = mCurrFrameResource->PassCB->Resource();
+		D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + (1 + i) * passCBByteSize;
+		mCommandList->SetGraphicsRootConstantBufferView(1, passCBAddress);
+
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
+
+		mCommandList->SetPipelineState(mPSOs["sky"].Get());
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
+
+		mCommandList->SetPipelineState(mPSOs["opaque"].Get());
+	}
+
+	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mDynamicCubeMap->Resource(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
+	// Change back to GENERIC_READ so we can read the texture in a shader.
+	mCommandList->ResourceBarrier(1, &resBarr);
+}
+
+void d3dApp::UpdateCubeMapFacePassCBs()
+{
+	for (int i = 0; i < 6; ++i)
+	{
+		PassConstants cubeFacePassCB = mMainPassCB;
+
+		XMMATRIX view = mCubeMapCamera[i].GetView();
+		XMMATRIX proj = mCubeMapCamera[i].GetProj();
+
+		XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+		auto det = XMMatrixDeterminant(view);
+		XMMATRIX invView = XMMatrixInverse(&det, view);
+		det = XMMatrixDeterminant(proj);
+		XMMATRIX invProj = XMMatrixInverse(&det, proj);
+		det = XMMatrixDeterminant(viewProj);
+		XMMATRIX invViewProj = XMMatrixInverse(&det, viewProj);
+
+		XMStoreFloat4x4(&cubeFacePassCB.View, XMMatrixTranspose(view));
+		XMStoreFloat4x4(&cubeFacePassCB.InvView, XMMatrixTranspose(invView));
+		XMStoreFloat4x4(&cubeFacePassCB.Proj, XMMatrixTranspose(proj));
+		XMStoreFloat4x4(&cubeFacePassCB.InvProj, XMMatrixTranspose(invProj));
+		XMStoreFloat4x4(&cubeFacePassCB.ViewProj, XMMatrixTranspose(viewProj));
+		XMStoreFloat4x4(&cubeFacePassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+		cubeFacePassCB.EyePosW = mCubeMapCamera[i].GetPosition3f();
+		cubeFacePassCB.RenderTargetSize = XMFLOAT2((float)CubeMapSize, (float)CubeMapSize);
+		cubeFacePassCB.InvRenderTargetSize = XMFLOAT2(1.0f / CubeMapSize, 1.0f / CubeMapSize);
+
+		auto currPassCB = mCurrFrameResource->PassCB.get();
+
+		// Cube map pass cbuffers are stored in elements 1-6.
+		currPassCB->CopyData(1 + i, cubeFacePassCB);
+	}
+}
