@@ -1001,7 +1001,7 @@ void d3dApp::BuildRenderItems()
 
 
 	XMVECTOR lightDir = XMLoadFloat3(&mBaseLightDirections[0]);
-	XMVECTOR lightPos = -2.0f * mSceneBounds.Radius * lightDir;
+	XMVECTOR lightPos = -1.0f * mSceneBounds.Radius * lightDir;
 
 
 	std:wstring text = L"***Radius: ";
@@ -1053,11 +1053,18 @@ void d3dApp::BuildRenderItems()
 		auto leftSphereRitem = std::make_unique<RenderItem>();
 		auto rightSphereRitem = std::make_unique<RenderItem>();
 
-		XMMATRIX leftCylWorld = XMMatrixTranslation(-5.0f, 1.5f, -10.0f + i * 5.0f);
-		XMMATRIX rightCylWorld = XMMatrixTranslation(+5.0f, 1.5f, -10.0f + i * 5.0f);
+		XMVECTOR length = XMVector3Length(XMVectorSet(-5.0f, 1.5f, -10.0f + i * 5.0f, 1.0f));
 
-		XMMATRIX leftSphereWorld = XMMatrixTranslation(-5.0f, 3.5f, -10.0f + i * 5.0f);
-		XMMATRIX rightSphereWorld = XMMatrixTranslation(+5.0f, 3.5f, -10.0f + i * 5.0f);
+		XMFLOAT3 dist;
+		XMStoreFloat3(&dist, length);
+
+		float mod = dist.x / 3.5f;
+
+		XMMATRIX leftCylWorld = XMMatrixTranslation(-5.0f + mod, 1.5f, -8.0f + i * 4.0f);
+		XMMATRIX rightCylWorld = XMMatrixTranslation(+5.0f - mod, 1.5f, -8.0f + i * 4.0f);
+
+		XMMATRIX leftSphereWorld = XMMatrixTranslation(-5.0f + mod, 3.5f, -8.0f + i * 4.0f);
+		XMMATRIX rightSphereWorld = XMMatrixTranslation(+5.0f - mod, 3.5f, -8.0f + i * 4.0f);
 
 		XMStoreFloat4x4(&leftCylRitem->World, rightCylWorld);
 		XMStoreFloat4x4(&leftCylRitem->TexTransform, brickTexTransform);
@@ -1713,10 +1720,15 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 	mMainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
 	mMainPassCB.Lights[0].Strength = { 0.9f, 0.8f, 0.7f };
-	mMainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
-	mMainPassCB.Lights[1].Strength = { 0.4f, 0.4f, 0.4f };
-	mMainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
-	mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
+	mMainPassCB.Lights[0].FalloffStart = 0.0f;//.Strength = { 0.9f, 0.8f, 0.7f };
+	mMainPassCB.Lights[0].FalloffEnd = 10.0f;//.Strength = { 0.9f, 0.8f, 0.7f };
+	mMainPassCB.Lights[0].Position = mMainPassCB.PointLightPosW;
+
+
+	//mMainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
+	//mMainPassCB.Lights[1].Strength = { 0.4f, 0.4f, 0.4f };
+	//mMainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
+	//mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
 
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
