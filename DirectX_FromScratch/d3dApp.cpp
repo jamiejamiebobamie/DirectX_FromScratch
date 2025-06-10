@@ -1058,13 +1058,14 @@ void d3dApp::BuildRenderItems()
 		XMFLOAT3 dist;
 		XMStoreFloat3(&dist, length);
 
-		float mod = dist.x / 3.5f;
+		float mod = (dist.x / 2.0f) - ((dist.x / 4.0f) * (dist.x / 4.0f)) + ((dist.x / 5.0f) * (dist.x / 5.0f) * (dist.x / 5.0f));
+		float mod2 = 5.0f;
 
-		XMMATRIX leftCylWorld = XMMatrixTranslation(-5.0f + mod, 1.5f, -8.0f + i * 4.0f);
-		XMMATRIX rightCylWorld = XMMatrixTranslation(+5.0f - mod, 1.5f, -8.0f + i * 4.0f);
+		XMMATRIX leftCylWorld = XMMatrixTranslation(-5.0f + mod, 1.5f, -mod2 + i * mod2 / 2.0f);
+		XMMATRIX rightCylWorld = XMMatrixTranslation(+5.0f - mod, 1.5f, -mod2 + i * mod2 / 2.0f);
 
-		XMMATRIX leftSphereWorld = XMMatrixTranslation(-5.0f + mod, 3.5f, -8.0f + i * 4.0f);
-		XMMATRIX rightSphereWorld = XMMatrixTranslation(+5.0f - mod, 3.5f, -8.0f + i * 4.0f);
+		XMMATRIX leftSphereWorld = XMMatrixTranslation(-5.0f + mod, 3.5f, -mod2 + i * mod2 / 2.0f);
+		XMMATRIX rightSphereWorld = XMMatrixTranslation(+5.0f - mod, 3.5f, -mod2 + i * mod2 / 2.0f);
 
 		XMStoreFloat4x4(&leftCylRitem->World, rightCylWorld);
 		XMStoreFloat4x4(&leftCylRitem->TexTransform, brickTexTransform);
