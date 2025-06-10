@@ -168,7 +168,6 @@
     <ClInclude Include="d3dApp.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="Resource.h" />
-    <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="UploadBuffer.h" />
   </ItemGroup>
@@ -183,7 +182,6 @@
     <ClCompile Include="d3dApp.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="MathHelper.cpp" />
-    <ClCompile Include="ShadowMap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DirectX_FromScratch.rc" />

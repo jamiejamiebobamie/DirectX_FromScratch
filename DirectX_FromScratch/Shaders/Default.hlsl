@@ -89,19 +89,11 @@ float4 PS(VertexOut pin) : SV_Target
 
     // Only the first light casts a shadow.
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
-    //shadowFactor[0] = CalcShadowFactor(float4(pin.PosW, 1.0f));
-    //pin.ShadowPosH);
-    
-    
-    
-
     float3 look = normalize(pin.PosW - gPointLightPosW);
     float imgDepth = gShadowMap.Sample(gsamPointWrap, look).r;
     float dist = distance(pin.PosW, gPointLightPosW);
-    float depth = dist / (5.0f - 0.1f); // scale by far - near plane
-
-    
-    
+    float depth = dist / (1000.0f - 0.1f); // scale by far - near plane
+    shadowFactor[0] = depth;
 
     const float shininess = (1.0f - roughness) * normalMapSample.a;
     Material mat = { diffuseAlbedo, fresnelR0, shininess };
@@ -117,17 +109,9 @@ float4 PS(VertexOut pin) : SV_Target
     litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
 	
     // Common convention to take alpha from diffuse albedo.
-    litColor.a = diffuseAlbedo.a;
+    litColor.a = diffuseAlbedo.a;        
     
     return lerp(float4(0.0f, 0.0f, 0.0f, 1.0f), litColor, imgDepth);
-
-  //  return lerp(litColor * 0.0001f, litColor, imgDepth);
-    //depth > imgDepth ? litColor * 0.3f : litColor;
-     //litColor + float4(imgDepth, 1.0f);
-    //float4(imgDepth, 1.0f);
-    //litColor - float4(imgDepth, 1.0f); //
-    //imgDepth;
-    //litColor;
 }
 
 

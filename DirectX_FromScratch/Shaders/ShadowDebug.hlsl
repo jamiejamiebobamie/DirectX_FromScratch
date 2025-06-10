@@ -36,12 +36,8 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float3 look = normalize(pin.PosW - gPointLightPosW);
-    
-    //float3 mapSample = gShadowMap.Sample(look).rrr;
-    //clip(mapSample.r > 0.93f ? -1.0f : 1.0f); // remove white background
-	
-    return float4(gShadowMap.Sample(gsamLinearWrap, look).rrr, 1.0f);
+    float3 look = normalize(pin.PosW - gPointLightPosW);	
+    return float4(float3(1.0f, 1.0f, 1.0f) - gShadowMap.Sample(gsamLinearWrap, look).rrr, 1.0f);
 }
 
 

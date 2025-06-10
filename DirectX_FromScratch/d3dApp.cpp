@@ -7,6 +7,8 @@ using Microsoft::WRL::ComPtr;
 using namespace std;
 using namespace DirectX;
 
+const float LIGHT_RADIUS = 5.0f;
+
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -29,16 +31,6 @@ d3dApp::d3dApp(HINSTANCE hInstance) : mhAppInst(hInstance)
 {
 	assert(mApp == nullptr);
 	mApp = this;
-
-	// Estimate the scene bounding sphere manually since we know how the scene was constructed.
-	// The grid is the "widest object" with a width of 20 and depth of 30.0f, and centered at
-	// the world space origin.  In general, you need to loop over every world space vertex
-	// position and compute the bounding sphere.
-	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	//mSceneBounds.Radius = sqrtf(10.0f * 10.0f + 15.0f * 15.0f);
-	//mSceneBounds.Radius = sqrtf(20.0f * 20.0f + 30.0f * 30.0f);
-	mSceneBounds.Radius = 2.5f;//sqrtf(20.0f + 30.0f);
-
 }
 
 d3dApp::~d3dApp()
@@ -94,10 +86,6 @@ bool d3dApp::Initialize()
 
 	mCamera.SetPosition(0.0f, 20.0f, 0.0f);
 	mCamera.Pitch(MathHelper::Pi * 0.5f);
-
-	//mShadowMap = std::make_unique<ShadowMap>(md3dDevice.Get(), 2024, 2024);
-		//16192, 16192);
-		//20000, 20000);
 
 	mDynamicCubeMap = std::make_unique<CubeRenderTarget>(md3dDevice.Get(),
 		CubeMapSize, CubeMapSize, DXGI_FORMAT_R24G8_TYPELESS);
@@ -160,7 +148,7 @@ bool d3dApp::InitMainWindow()
 		return false;
 	}
 
-	ShowWindow(mhMainWnd, SW_SHOWMAXIMIZED); // SW_SHOW
+	ShowWindow(mhMainWnd, SW_SHOWMAXIMIZED);
 	UpdateWindow(mhMainWnd);
 
 	return true;
@@ -180,7 +168,7 @@ bool d3dApp::InitDirect3D() {
 
 	HRESULT hardwareResult = D3D12CreateDevice(
 		nullptr,
-		D3D_FEATURE_LEVEL_12_1, //D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_12_1,
 		IID_PPV_ARGS(&md3dDevice));
 
 	if (FAILED(hardwareResult))
@@ -190,7 +178,7 @@ bool d3dApp::InitDirect3D() {
 
 		ThrowIfFailed(D3D12CreateDevice(
 			pWarpAdapter.Get(),
-			D3D_FEATURE_LEVEL_12_1, //D3D_FEATURE_LEVEL_11_0,
+			D3D_FEATURE_LEVEL_12_1,
 			IID_PPV_ARGS(&md3dDevice)));
 	}
 
@@ -200,7 +188,6 @@ bool d3dApp::InitDirect3D() {
 	mDsvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	mCbvSrvUavDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
 
 	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
 	msQualityLevels.Format = mBackBufferFormat;
@@ -420,7 +407,7 @@ void d3dApp::BuildDescriptorHeaps()
 		hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
 	}
 
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE; // D3D12_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 	srvDesc.TextureCube.MostDetailedMip = 0;
 	srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
 	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
@@ -942,19 +929,19 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Sky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
-	//auto quadRitem = std::make_unique<RenderItem>();
-	//quadRitem->World = MathHelper::Identity4x4();
-	//quadRitem->TexTransform = MathHelper::Identity4x4();
-	//quadRitem->ObjCBIndex = 1;
-	//quadRitem->Mat = mMaterials["bricks0"].get();
-	//quadRitem->Geo = mGeometries["shapeGeo"].get();
-	//quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	//quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
-	//quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
-	//quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+	auto quadRitem = std::make_unique<RenderItem>();
+	quadRitem->World = MathHelper::Identity4x4();
+	quadRitem->TexTransform = MathHelper::Identity4x4();
+	quadRitem->ObjCBIndex = 1;
+	quadRitem->Mat = mMaterials["bricks0"].get();
+	quadRitem->Geo = mGeometries["shapeGeo"].get();
+	quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
+	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
+	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
 
-	//mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
-	//mAllRitems.push_back(std::move(quadRitem));
+	mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
+	mAllRitems.push_back(std::move(quadRitem));
 
 	auto boxRitem = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 1.0f, 2.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
@@ -998,22 +985,14 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 
-
-
 	XMVECTOR lightDir = XMLoadFloat3(&mBaseLightDirections[0]);
-	XMVECTOR lightPos = -1.0f * mSceneBounds.Radius * lightDir;
-
-
-	std:wstring text = L"***Radius: ";
-	text += std::to_wstring(mSceneBounds.Radius);
-	OutputDebugString(text.c_str());
-
+	XMVECTOR lightPos = LIGHT_RADIUS * -lightDir;
 	XMFLOAT4 sunRitemWorld;
 	XMStoreFloat4(&sunRitemWorld, lightPos);
 
 	auto sunRitem = std::make_unique<RenderItem>();
 	sunRitem->TexTransform = MathHelper::Identity4x4(); 
-	XMStoreFloat4x4(&sunRitem->World, XMMatrixTranslation(sunRitemWorld.x, sunRitemWorld.y, sunRitemWorld.z));
+	XMStoreFloat4x4(&sunRitem->World, XMMatrixScaling(0.7f, 0.7f, 0.7f) * XMMatrixTranslation(sunRitemWorld.x, 2.0f, sunRitemWorld.z));
 	sunRitem->ObjCBIndex = ObjCBIndex++;
 	sunRitem->Mat = mMaterials["sun"].get();
 	sunRitem->Geo = mGeometries["shapeGeo"].get();
@@ -1023,10 +1002,8 @@ void d3dApp::BuildRenderItems()
 	sunRitem->BaseVertexLocation = sunRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
 	mSunRitem = sunRitem.get();
 
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(sunRitem.get());
+	mRitemLayer[(int)RenderLayer::Sun].push_back(sunRitem.get());
 	mAllRitems.push_back(std::move(sunRitem));
-
-
 
 	auto cubMapRitem = std::make_unique<RenderItem>();
 	cubMapRitem->TexTransform = MathHelper::Identity4x4();
@@ -1035,11 +1012,10 @@ void d3dApp::BuildRenderItems()
 	cubMapRitem->Mat = mMaterials["skullMat"].get();
 	cubMapRitem->Geo = mGeometries["shapeGeo"].get();
 	cubMapRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	cubMapRitem->IndexCount = cubMapRitem->Geo->DrawArgs["box"].IndexCount;
-	cubMapRitem->StartIndexLocation = cubMapRitem->Geo->DrawArgs["box"].StartIndexLocation;
-	cubMapRitem->BaseVertexLocation = cubMapRitem->Geo->DrawArgs["box"].BaseVertexLocation;
+	cubMapRitem->IndexCount = cubMapRitem->Geo->DrawArgs["sphere"].IndexCount;
+	cubMapRitem->StartIndexLocation = cubMapRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
+	cubMapRitem->BaseVertexLocation = cubMapRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
 	mCubMapRitem = cubMapRitem.get();
-
 
 	mRitemLayer[(int)RenderLayer::Debug].push_back(cubMapRitem.get());
 	mAllRitems.push_back(std::move(cubMapRitem));
@@ -1143,46 +1119,6 @@ void d3dApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vect
 		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
 }
-
-//void d3dApp::DrawSceneToShadowMap()
-//{
-//	auto vp = mShadowMap->Viewport();
-//	mCommandList->RSSetViewports(1, &vp);
-//	auto sr = mShadowMap->ScissorRect();
-//	mCommandList->RSSetScissorRects(1, &sr);
-//
-//	auto resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
-//		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-//
-//	// Change to DEPTH_WRITE.
-//	mCommandList->ResourceBarrier(1, &resBarr);
-//
-//	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-//
-//	// Clear the back buffer and depth buffer.
-//	mCommandList->ClearDepthStencilView(mShadowMap->Dsv(),
-//		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-//
-//	// Set null render target because we are only going to draw to
-//	// depth buffer.  Setting a null render target will disable color writes
-//	// Note the active PSO also must specify a render target count of 0.
-//	auto dsv = mShadowMap->Dsv();
-//	mCommandList->OMSetRenderTargets(0, nullptr, false, &dsv);
-//
-//	// Bind the pass constant buffer for the shadow map pass.
-//	auto passCB = mCurrFrameResource->PassCB->Resource();
-//	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
-//	mCommandList->SetGraphicsRootConstantBufferView(1, passCBAddress);
-//
-//	mCommandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
-//
-//	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
-//
-//	// Change back to GENERIC_READ so we can read the texture in a shader.
-//	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
-//		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
-//	mCommandList->ResourceBarrier(1, &resBarr);
-//}
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> d3dApp::GetStaticSamplers()
 {
@@ -1397,9 +1333,7 @@ void d3dApp::Update(const GameTimer& gt)
 	//
 	// Animate the lights (and hence shadows).
 	//
-
-	mLightRotationAngle += 1.8f * gt.DeltaTime();
-
+	mLightRotationAngle += mLightSpeed * gt.DeltaTime();
 	XMMATRIX R = XMMatrixRotationY(mLightRotationAngle);
 	for (int i = 0; i < 3; ++i)
 	{
@@ -1408,14 +1342,13 @@ void d3dApp::Update(const GameTimer& gt)
 		XMStoreFloat3(&mRotatedLightDirections[i], lightDir);
 	}
 
-
 	// update sun position after light dir rotation
 	XMVECTOR lightDir = XMLoadFloat3(&mRotatedLightDirections[0]);
-	XMVECTOR lightPos = -2.0f * mSceneBounds.Radius * lightDir;
+	XMVECTOR lightPos = LIGHT_RADIUS * -lightDir;
 	XMFLOAT4 sunRitemWorld;
 	XMStoreFloat4(&sunRitemWorld, lightPos);
-	XMMATRIX sunOffset = XMMatrixTranslation(sunRitemWorld.x, sunRitemWorld.y, sunRitemWorld.z);
-	XMStoreFloat4x4(&mSunRitem->World, sunOffset);
+	XMMATRIX sunOffset = XMMatrixTranslation(sunRitemWorld.x, 2.0f, sunRitemWorld.z);
+	XMStoreFloat4x4(&mSunRitem->World, XMMatrixScaling(0.9f, 0.9f, 0.9f) * sunOffset);
 	mSunRitem->NumFramesDirty = gNumFrameResources;
 
 
@@ -1429,9 +1362,7 @@ void d3dApp::Update(const GameTimer& gt)
 	AnimateMaterials(gt);
 	UpdateObjectCBs(gt);
 	UpdateMaterialBuffer(gt);
-	//UpdateShadowTransform(gt);
 	UpdateMainPassCB(gt);
-	//UpdateShadowPassCB(gt);
 }
 
 void d3dApp::Draw(const GameTimer& gt)
@@ -1464,7 +1395,6 @@ void d3dApp::Draw(const GameTimer& gt)
 	// The root signature knows how many descriptors are expected in the table.
 	mCommandList->SetGraphicsRootDescriptorTable(4, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-	//DrawSceneToShadowMap();
 	DrawSceneToCubeMap();
 
 	mCommandList->RSSetViewports(1, &mScreenViewport);
@@ -1499,8 +1429,13 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->SetPipelineState(mPSOs["opaque"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 
-	//mCommandList->SetPipelineState(mPSOs["debug"].Get());
-	//DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Debug]);
+	if (!mIsDebug) {
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sun]);
+	}
+	else {
+		mCommandList->SetPipelineState(mPSOs["debug"].Get());
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Debug]);
+	}
 
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
@@ -1566,7 +1501,6 @@ void d3dApp::OnMouseMove(WPARAM btnState, int x, int y)
 void d3dApp::OnKeyboardInput(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
-
 	const float speed = 50.0f;
 
 	if (GetAsyncKeyState('W') & 0x8000)
@@ -1581,11 +1515,15 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 	if (GetAsyncKeyState('D') & 0x8000)
 		mCamera.Strafe(speed * dt);
 
-	if (GetAsyncKeyState('1') & 0x8000)
-		mIsOrtho = false;
+	if (GetAsyncKeyState('1') & 0x8000) {
+		mLightSpeed = 1.8f;
+		mIsDebug = false;
+	}
 
-	if (GetAsyncKeyState('2') & 0x8000)
-		mIsOrtho = true;
+	if (GetAsyncKeyState('2') & 0x8000) {
+		mLightSpeed = 0.8f;
+		mIsDebug = true;
+	}
 
 	mCamera.UpdateViewMatrix();
 }
@@ -1648,46 +1586,6 @@ void d3dApp::UpdateMaterialBuffer(const GameTimer& gt)
 	}
 }
 
-void d3dApp::UpdateShadowTransform(const GameTimer& gt)
-{
-	// Only the first "main" light casts a shadow.
-	XMVECTOR lightDir = XMLoadFloat3(&mRotatedLightDirections[0]);
-	XMVECTOR lightPos = -2.0f * mSceneBounds.Radius * lightDir;
-	XMVECTOR targetPos = XMLoadFloat3(&mSceneBounds.Center);
-	XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-	XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
-
-	XMStoreFloat3(&mLightPosW, lightPos);
-
-	// Transform bounding sphere to light space.
-	XMFLOAT3 sphereCenterLS;
-	XMStoreFloat3(&sphereCenterLS, XMVector3TransformCoord(targetPos, lightView));
-
-	// Ortho frustum in light space encloses scene.
-	float l = sphereCenterLS.x - mSceneBounds.Radius;
-	float b = sphereCenterLS.y - mSceneBounds.Radius;
-	float n = sphereCenterLS.z - mSceneBounds.Radius;
-	float r = sphereCenterLS.x + mSceneBounds.Radius;
-	float t = sphereCenterLS.y + mSceneBounds.Radius;
-	float f = sphereCenterLS.z + mSceneBounds.Radius;
-
-	mLightNearZ = n;
-	mLightFarZ = f;
-	XMMATRIX lightProj = mIsOrtho ? XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f) : XMMatrixPerspectiveOffCenterLH(l, r, b, t, n, f);
-
-	// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
-	XMMATRIX T(
-		0.5f, 0.0f, 0.0f, 0.0f,
-		0.0f, -0.5f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 1.0f);
-
-	XMMATRIX S = lightView * lightProj * T;
-	XMStoreFloat4x4(&mLightView, lightView);
-	XMStoreFloat4x4(&mLightProj, lightProj);
-	//XMStoreFloat4x4(&mShadowTransform, S);
-}
-
 void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 {
 	XMMATRIX view = mCamera.GetView();
@@ -1701,7 +1599,6 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	det = XMMatrixDeterminant(viewProj);
 	XMMATRIX invViewProj = XMMatrixInverse(&det, viewProj);
 
-	//XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
 
 	XMStoreFloat4x4(&mMainPassCB.View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&mMainPassCB.InvView, XMMatrixTranspose(invView));
@@ -1709,7 +1606,6 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	XMStoreFloat4x4(&mMainPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-	//XMStoreFloat4x4(&mMainPassCB.ShadowTransform, XMMatrixTranspose(shadowTransform));
 	mMainPassCB.EyePosW = mCamera.GetPosition3f();
 	XMStoreFloat3(&mMainPassCB.PointLightPosW, XMVectorSet(mCubMapRitem->World._41, mCubMapRitem->World._42, mCubMapRitem->World._43, 1.0f));
 	mMainPassCB.RenderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
@@ -1721,55 +1617,15 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 	mMainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
 	mMainPassCB.Lights[0].Strength = { 0.9f, 0.8f, 0.7f };
-	mMainPassCB.Lights[0].FalloffStart = 0.0f;//.Strength = { 0.9f, 0.8f, 0.7f };
-	mMainPassCB.Lights[0].FalloffEnd = 10.0f;//.Strength = { 0.9f, 0.8f, 0.7f };
+	mMainPassCB.Lights[0].FalloffStart = 0.0f;
+	mMainPassCB.Lights[0].FalloffEnd = 10.0f;
 	mMainPassCB.Lights[0].Position = mMainPassCB.PointLightPosW;
-
-
-	//mMainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
-	//mMainPassCB.Lights[1].Strength = { 0.4f, 0.4f, 0.4f };
-	//mMainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
-	//mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
-
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
 
 	UpdateCubeMapFacePassCBs();
 }
-
-//void d3dApp::UpdateShadowPassCB(const GameTimer& gt)
-//{
-//	XMMATRIX view = XMLoadFloat4x4(&mLightView);
-//	XMMATRIX proj = XMLoadFloat4x4(&mLightProj);
-//
-//	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-//
-//	auto det = XMMatrixDeterminant(view);
-//	XMMATRIX invView = XMMatrixInverse(&det, view);
-//	det = XMMatrixDeterminant(proj);
-//	XMMATRIX invProj = XMMatrixInverse(&det, proj);
-//	det = XMMatrixDeterminant(viewProj);
-//	XMMATRIX invViewProj = XMMatrixInverse(&det, viewProj);
-//
-//	UINT w = mShadowMap->Width();
-//	UINT h = mShadowMap->Height();
-//
-//	XMStoreFloat4x4(&mShadowPassCB.View, XMMatrixTranspose(view));
-//	XMStoreFloat4x4(&mShadowPassCB.InvView, XMMatrixTranspose(invView));
-//	XMStoreFloat4x4(&mShadowPassCB.Proj, XMMatrixTranspose(proj));
-//	XMStoreFloat4x4(&mShadowPassCB.InvProj, XMMatrixTranspose(invProj));
-//	XMStoreFloat4x4(&mShadowPassCB.ViewProj, XMMatrixTranspose(viewProj));
-//	XMStoreFloat4x4(&mShadowPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-//	mShadowPassCB.EyePosW = mLightPosW;
-//	mShadowPassCB.RenderTargetSize = XMFLOAT2((float)w, (float)h);
-//	mShadowPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);
-//	mShadowPassCB.NearZ = mLightNearZ;
-//	mShadowPassCB.FarZ = mLightFarZ;
-//
-//	auto currPassCB = mCurrFrameResource->PassCB.get();
-//	currPassCB->CopyData(1, mShadowPassCB);
-//}
 
 LRESULT d3dApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -2094,45 +1950,6 @@ void d3dApp::BuildCubeFaceCamera(float x, float y, float z)
 	}
 }
 
-//void d3dApp::BuildCubeDepthStencil()
-//{
-//	// Create the depth/stencil buffer and view.
-//	D3D12_RESOURCE_DESC depthStencilDesc;
-//	depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-//	depthStencilDesc.Alignment = 0;
-//	depthStencilDesc.Width = CubeMapSize;
-//	depthStencilDesc.Height = CubeMapSize;
-//	depthStencilDesc.DepthOrArraySize = 1;
-//	depthStencilDesc.MipLevels = 1;
-//	depthStencilDesc.Format = mDepthStencilFormat;
-//	depthStencilDesc.SampleDesc.Count = 1;
-//	depthStencilDesc.SampleDesc.Quality = 0;
-//	depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-//	depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-//
-//	D3D12_CLEAR_VALUE optClear;
-//	optClear.Format = mDepthStencilFormat;
-//	optClear.DepthStencil.Depth = 1.0f;
-//	optClear.DepthStencil.Stencil = 0;
-//	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-//	ThrowIfFailed(md3dDevice->CreateCommittedResource(
-//		&heapProps,
-//		D3D12_HEAP_FLAG_NONE,
-//		&depthStencilDesc,
-//		D3D12_RESOURCE_STATE_COMMON,
-//		&optClear,
-//		IID_PPV_ARGS(mCubeDepthStencilBuffer.GetAddressOf())));
-//
-//	// Create descriptor to mip level 0 of entire resource using the format of the resource.
-//	md3dDevice->CreateDepthStencilView(mCubeDepthStencilBuffer.Get(), nullptr, mCubeDSV);
-//
-//	auto resBarr = CD3DX12_RESOURCE_BARRIER::Transition(mCubeDepthStencilBuffer.Get(),
-//		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-//
-//	// Transition the resource from its initial state to be used as a depth buffer.
-//	mCommandList->ResourceBarrier(1, &resBarr);
-//}
-
 void d3dApp::DrawSceneToCubeMap()
 {
 	auto vp = mDynamicCubeMap->Viewport();
@@ -2165,9 +1982,6 @@ void d3dApp::DrawSceneToCubeMap()
 		mCommandList->SetGraphicsRootConstantBufferView(1, passCBAddress);
 
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
-
-		mCommandList->SetPipelineState(mPSOs["sky"].Get());
-		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
 
 		mCommandList->SetPipelineState(mPSOs["opaque"].Get());
 	}

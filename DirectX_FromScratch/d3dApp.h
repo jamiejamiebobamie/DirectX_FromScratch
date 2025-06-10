@@ -12,7 +12,6 @@
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
 #include "Camera.h"
-//#include "ShadowMap.h"
 #include "CubeRenderTarget.h"
 
 // Link necessary d3d12 libraries.
@@ -29,6 +28,7 @@ enum class RenderLayer : int
 {
 	Opaque = 0,
 	Debug,
+	Sun,
 	Sky,
 	Count
 };
@@ -102,7 +102,6 @@ private:
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
 	void UpdateShadowTransform(const GameTimer& gt);
-	void UpdateShadowPassCB(const GameTimer& gt);
 
 	void LoadTextures();
 	void BuildRootSignature();
@@ -115,9 +114,7 @@ private:
 	void BuildMaterials();
 	void BuildRenderItems();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
-	void DrawSceneToShadowMap();
 	void BuildCubeFaceCamera(float x, float y, float z);
-	//void BuildCubeDepthStencil();
 	void UpdateCubeMapFacePassCBs();
 
 	void DrawSceneToCubeMap();
@@ -166,7 +163,6 @@ private:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 
 	PassConstants mMainPassCB;  // index 0 of pass cbuffer.
-	//PassConstants mShadowPassCB;// index 1 of pass cbuffer.
 
 	POINT mLastMousePos;
 
@@ -174,8 +170,6 @@ private:
 	Camera mCubeMapCamera[6];
 
 	bool mIsOrtho = true;
-
-	//std::unique_ptr<ShadowMap> mShadowMap;
 
 	RenderItem* mSunRitem = nullptr;
 	RenderItem* mCubMapRitem = nullptr;
@@ -187,7 +181,6 @@ private:
 	XMFLOAT3 mLightPosW;
 	XMFLOAT4X4 mLightView = MathHelper::Identity4x4();
 	XMFLOAT4X4 mLightProj = MathHelper::Identity4x4();
-	//XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
 
 	float mLightRotationAngle = 0.0f;
 	XMFLOAT3 mBaseLightDirections[3] = {
@@ -280,6 +273,8 @@ protected:
 	int mClientHeight = 600;
 
 	bool mIsEdited = false;
+	bool mIsDebug = false;
+	float mLightSpeed = 1.8f;
 
 };
 
