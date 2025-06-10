@@ -929,19 +929,19 @@ void d3dApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Sky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
-	auto quadRitem = std::make_unique<RenderItem>();
-	quadRitem->World = MathHelper::Identity4x4();
-	quadRitem->TexTransform = MathHelper::Identity4x4();
-	quadRitem->ObjCBIndex = 1;
-	quadRitem->Mat = mMaterials["bricks0"].get();
-	quadRitem->Geo = mGeometries["shapeGeo"].get();
-	quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
-	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
-	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+	//auto quadRitem = std::make_unique<RenderItem>();
+	//quadRitem->World = MathHelper::Identity4x4();
+	//quadRitem->TexTransform = MathHelper::Identity4x4();
+	//quadRitem->ObjCBIndex = 1;
+	//quadRitem->Mat = mMaterials["bricks0"].get();
+	//quadRitem->Geo = mGeometries["shapeGeo"].get();
+	//quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
+	//quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
+	//quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
 
-	mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
-	mAllRitems.push_back(std::move(quadRitem));
+	//mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
+	//mAllRitems.push_back(std::move(quadRitem));
 
 	auto boxRitem = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 1.0f, 2.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
@@ -1521,7 +1521,7 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 	}
 
 	if (GetAsyncKeyState('2') & 0x8000) {
-		mLightSpeed = 0.8f;
+		mLightSpeed = 0.0f;//0.8f;
 		mIsDebug = true;
 	}
 
