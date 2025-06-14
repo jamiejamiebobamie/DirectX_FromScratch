@@ -31,11 +31,7 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float3 mapSample = gShadowMap.Sample(gsamLinearWrap, pin.TexC).rrr;
-	
-    clip(mapSample.r > 0.93f ? -1.0f : 1.0f); // remove white background
-	
-    return float4(mapSample, 1.0f);
+    return float4(gSsaoMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
 }
 
 

@@ -13,6 +13,7 @@
 #include "FrameResource.h"
 #include "Camera.h"
 #include "ShadowMap.h"
+#include "Ssao.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -100,9 +101,11 @@ private:
 	void UpdateMainPassCB(const GameTimer& gt);
 	void UpdateShadowTransform(const GameTimer& gt);
 	void UpdateShadowPassCB(const GameTimer& gt);
+	void UpdateSsaoCB(const GameTimer& gt);
 
 	void LoadTextures();
 	void BuildRootSignature();
+	void BuildSsaoRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
 	void BuildShapeGeometry();
@@ -113,6 +116,12 @@ private:
 	void BuildRenderItems();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 	void DrawSceneToShadowMap();
+	void DrawNormalsAndDepth();
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index)const;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index)const;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index)const;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index)const;
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 
@@ -125,6 +134,8 @@ private:
 	UINT mCbvSrvDescriptorSize = 0;
 
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
+
+	ComPtr<ID3D12RootSignature> mSsaoRootSignature = nullptr;
 
 	ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
 
@@ -146,9 +157,12 @@ private:
 
 	UINT mSkyTexHeapIndex = 0;
 	UINT mShadowMapHeapIndex = 0;
+	UINT mSsaoHeapIndexStart = 0;
+	UINT mSsaoAmbientMapIndex = 0;
 
 	UINT mNullCubeSrvIndex = 0;
-	UINT mNullTexSrvIndex = 0;
+	UINT mNullTexSrvIndex1 = 0;
+	UINT mNullTexSrvIndex2 = 0;
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 
@@ -162,6 +176,8 @@ private:
 	bool mIsOrtho = true;
 
 	std::unique_ptr<ShadowMap> mShadowMap;
+
+	std::unique_ptr<Ssao> mSsao;
 
 	RenderItem* mSunRitem = nullptr;
 
@@ -266,5 +282,6 @@ protected:
 
 	bool mIsEdited = false;
 
+	float mDp = 100.0f;
 };
 

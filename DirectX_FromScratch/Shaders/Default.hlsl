@@ -30,7 +30,8 @@ struct VertexOut
 {
     float4 PosH : SV_POSITION;
     float4 ShadowPosH : POSITION0;
-    float3 PosW : POSITION1;
+    float4 SsaoPosH : POSITION1;
+    float3 PosW : POSITION2;
     float3 NormalW : NORMAL;
     float3 TangentW : TANGENT;
     float2 TexC : TEXCOORD;
@@ -54,6 +55,9 @@ VertexOut VS(VertexIn vin)
 
     // Transform to homogeneous clip space.
     vout.PosH = mul(posW, gViewProj);
+
+    // Generate projective tex-coords to project SSAO map onto scene.
+    vout.SsaoPosH = mul(posW, gViewProjTex);
 	
 	// Output vertex attributes for interpolation across triangle.
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
@@ -97,8 +101,29 @@ float4 PS(VertexOut pin) : SV_Target
     // Vector from point being lit to eye. 
     float3 toEyeW = normalize(gEyePosW - pin.PosW);
 
+    // Finish texture projection and sample SSAO map.
+    pin.SsaoPosH /= pin.SsaoPosH.w;
+    float ambientAccess = gSsaoMap.Sample(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
+   
+    // ((sin(gTotalTime) + 2.0f) * 0.5f) * -0.5f
+    float scale = 0.2f; // + sin(gTotalTime * 0.5f) * 0.1f;
+    float4x4 scaleWatTex = float4x4(scale, 0.0f, 0.0f, 0.0f,
+                                    0.0f, scale, 0.0f, 0.0f,
+                                    0.0f, 0.0f, scale, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 1.0f);
+
+    
+    MaterialData watMat = gMaterialData[5];
+    float waterAnim = gTextureMaps[watMat.DiffuseMapIndex].Sample(gsamAnisotropicWrap, mul(mul(float4(pin.TexC, 0.0f, 1.0f), scaleWatTex), watMat.MatTransform).xy).b;    
+    float darkness = 1.0f - ambientAccess;
+    //ambientAccess = 1.0f - saturate(darkness + waterAnim);
+    // ambientAccess = 1.0f - saturate(darkness * gDp * waterAnim); // + darkness * waterAnim);
+    ambientAccess = 1.0f - saturate(darkness * waterAnim); // + darkness * waterAnim);
+
+    
+    
     // Light terms.
-    float4 ambient = gAmbientLight * diffuseAlbedo;
+    float4 ambient = ambientAccess * gAmbientLight * diffuseAlbedo;
 
     // Only the first light casts a shadow.
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
@@ -109,7 +134,7 @@ float4 PS(VertexOut pin) : SV_Target
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         bumpedNormalW, toEyeW, shadowFactor);
 
-    float4 litColor = ambient + directLight;
+    float4 litColor = ambient * shadowFactor[0] + directLight;
 
 	// Add in specular reflections.
     float3 r = reflect(-toEyeW, bumpedNormalW);
