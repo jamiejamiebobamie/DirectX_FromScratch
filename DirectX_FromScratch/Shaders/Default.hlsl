@@ -104,23 +104,6 @@ float4 PS(VertexOut pin) : SV_Target
     // Finish texture projection and sample SSAO map.
     pin.SsaoPosH /= pin.SsaoPosH.w;
     float ambientAccess = gSsaoMap.Sample(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
-   
-    // ((sin(gTotalTime) + 2.0f) * 0.5f) * -0.5f
-    float scale = 0.2f; // + sin(gTotalTime * 0.5f) * 0.1f;
-    float4x4 scaleWatTex = float4x4(scale, 0.0f, 0.0f, 0.0f,
-                                    0.0f, scale, 0.0f, 0.0f,
-                                    0.0f, 0.0f, scale, 0.0f,
-                                    0.0f, 0.0f, 0.0f, 1.0f);
-
-    
-    MaterialData watMat = gMaterialData[5];
-    float waterAnim = gTextureMaps[watMat.DiffuseMapIndex].Sample(gsamAnisotropicWrap, mul(mul(float4(pin.TexC, 0.0f, 1.0f), scaleWatTex), watMat.MatTransform).xy).b;    
-    float darkness = 1.0f - ambientAccess;
-    //ambientAccess = 1.0f - saturate(darkness + waterAnim);
-    // ambientAccess = 1.0f - saturate(darkness * gDp * waterAnim); // + darkness * waterAnim);
-    ambientAccess = 1.0f - saturate(darkness * waterAnim); // + darkness * waterAnim);
-
-    
     
     // Light terms.
     float4 ambient = ambientAccess * gAmbientLight * diffuseAlbedo;

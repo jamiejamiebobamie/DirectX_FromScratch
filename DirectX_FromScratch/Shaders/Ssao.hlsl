@@ -19,11 +19,6 @@ cbuffer cbSsao : register(b0)
     float gOcclusionFadeStart;
     float gOcclusionFadeEnd;
     float gSurfaceEpsilon;
-	
-    float gDp;
-    float pad1;
-    float pad2;
-    float pad3;
 };
 
 cbuffer cbRootConstants : register(b1)
@@ -99,26 +94,8 @@ float OcclusionFunction(float distZ)
 	//        0     Eps          z0            z1        
 	//
 	
+
 	
-	/*
-	    // Coordinates given in view space.
-    float OcclusionRadius  = 0.5f;
-    float OcclusionFadeStart = 0.2f;
-    float OcclusionFadeEnd = 2.0f;
-    float SurfaceEpsilon = 0.05f;
-	*/
-	
-    float occlusion = 0.0f;
-    if (distZ > (gSurfaceEpsilon - gDp * .01f))
-    {
-        float fadeLength = gDp - 0.0f;
-		
-		// Linearly decrease occlusion from 1 to 0 as distZ goes 
-		// from gOcclusionFadeStart to gOcclusionFadeEnd.	
-        occlusion = saturate((gDp - distZ) / fadeLength);
-    }
-	
-	/*
 	float occlusion = 0.0f;
 	if(distZ > gSurfaceEpsilon)
 	{
@@ -128,7 +105,6 @@ float OcclusionFunction(float distZ)
 		// from gOcclusionFadeStart to gOcclusionFadeEnd.	
         occlusion = saturate( (gOcclusionFadeEnd-distZ)/fadeLength );
     }
-*/
 	
     return occlusion;
 }
@@ -221,5 +197,5 @@ float4 PS(VertexOut pin) : SV_Target
     float access = 1.0f - occlusionSum;
 
 	// Sharpen the contrast of the SSAO map to make the SSAO affect more dramatic.
-    return saturate(pow(access, gDp));
+    return saturate(pow(access, 6.0f));
 }
