@@ -23,7 +23,11 @@ struct VertexIn
     float3 PosL : POSITION;
     float3 NormalL : NORMAL;
     float2 TexC : TEXCOORD;
-    float3 TangentU : TANGENT;
+    float3 TangentL : TANGENT;
+#ifdef SKINNED
+    float3 BoneWeights : WEIGHTS;
+    uint4 BoneIndices  : BONEINDICES;
+#endif
 };
 
 struct VertexOut
@@ -44,6 +48,31 @@ VertexOut VS(VertexIn vin)
 	// Fetch the material data.
     MaterialData matData = gMaterialData[gMaterialIndex];
 	
+#ifdef SKINNED
+    float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    weights[0] = vin.BoneWeights.x;
+    weights[1] = vin.BoneWeights.y;
+    weights[2] = vin.BoneWeights.z;
+    weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+
+    float3 posL = float3(0.0f, 0.0f, 0.0f);
+    float3 normalL = float3(0.0f, 0.0f, 0.0f);
+    float3 tangentL = float3(0.0f, 0.0f, 0.0f);
+    for(int i = 0; i < 4; ++i)
+    {
+        // Assume no nonuniform scaling when transforming normals, so 
+        // that we do not have to use the inverse-transpose.
+
+        posL += weights[i] * mul(float4(vin.PosL, 1.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;
+        normalL += weights[i] * mul(vin.NormalL, (float3x3)gBoneTransforms[vin.BoneIndices[i]]);
+        tangentL += weights[i] * mul(vin.TangentL.xyz, (float3x3)gBoneTransforms[vin.BoneIndices[i]]);
+    }
+
+    vin.PosL = posL;
+    vin.NormalL = normalL;
+    vin.TangentL.xyz = tangentL;
+#endif
+
     // Transform to world space.
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
     vout.PosW = posW.xyz;
@@ -51,7 +80,7 @@ VertexOut VS(VertexIn vin)
     // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
     vout.NormalW = mul(vin.NormalL, (float3x3) gWorld);
 	
-    vout.TangentW = mul(vin.TangentU, (float3x3) gWorld);
+    vout.TangentW = mul(vin.TangentL, (float3x3) gWorld);
 
     // Transform to homogeneous clip space.
     vout.PosH = mul(posW, gViewProj);
@@ -104,7 +133,7 @@ float4 PS(VertexOut pin) : SV_Target
     // Finish texture projection and sample SSAO map.
     pin.SsaoPosH /= pin.SsaoPosH.w;
     float ambientAccess = gSsaoMap.Sample(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
-    
+
     // Light terms.
     float4 ambient = ambientAccess * gAmbientLight * diffuseAlbedo;
 
@@ -117,7 +146,7 @@ float4 PS(VertexOut pin) : SV_Target
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         bumpedNormalW, toEyeW, shadowFactor);
 
-    float4 litColor = ambient * shadowFactor[0] + directLight;
+    float4 litColor = ambient + directLight;
 
 	// Add in specular reflections.
     float3 r = reflect(-toEyeW, bumpedNormalW);

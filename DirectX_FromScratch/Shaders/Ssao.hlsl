@@ -19,6 +19,8 @@ cbuffer cbSsao : register(b0)
     float gOcclusionFadeStart;
     float gOcclusionFadeEnd;
     float gSurfaceEpsilon;
+
+    
 };
 
 cbuffer cbRootConstants : register(b1)
@@ -94,16 +96,14 @@ float OcclusionFunction(float distZ)
 	//        0     Eps          z0            z1        
 	//
 	
-
-	
-	float occlusion = 0.0f;
-	if(distZ > gSurfaceEpsilon)
-	{
+    float occlusion = 0.0f;
+    if (distZ > gSurfaceEpsilon)
+    {
         float fadeLength = gOcclusionFadeEnd - gOcclusionFadeStart;
 		
 		// Linearly decrease occlusion from 1 to 0 as distZ goes 
 		// from gOcclusionFadeStart to gOcclusionFadeEnd.	
-        occlusion = saturate( (gOcclusionFadeEnd-distZ)/fadeLength );
+        occlusion = saturate((gOcclusionFadeEnd - distZ) / fadeLength);
     }
 	
     return occlusion;
@@ -124,7 +124,7 @@ float4 PS(VertexOut pin) : SV_Target
 	// r -- a potential occluder that might occlude p.
 
 	// Get viewspace normal and z-coord of this pixel.  
-    float3 n = normalize(gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz);
+    float3 n = gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz;
     float pz = gDepthMap.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r;
     pz = NdcDepthToViewDepth(pz);
 
@@ -186,9 +186,8 @@ float4 PS(VertexOut pin) : SV_Target
 		
         float distZ = p.z - r.z;
         float dp = max(dot(n, normalize(r - p)), 0.0f);
-
         float occlusion = dp * OcclusionFunction(distZ);
-		 
+		
         occlusionSum += occlusion;
     }
 	
@@ -197,5 +196,5 @@ float4 PS(VertexOut pin) : SV_Target
     float access = 1.0f - occlusionSum;
 
 	// Sharpen the contrast of the SSAO map to make the SSAO affect more dramatic.
-    return saturate(pow(access, 6.0f));
+    return saturate(pow(access, 2.0f));
 }

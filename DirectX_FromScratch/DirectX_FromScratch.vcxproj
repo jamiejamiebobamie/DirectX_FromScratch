@@ -165,9 +165,11 @@
     <ClInclude Include="GameTimer.h" />
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="d3dApp.h" />
+    <ClInclude Include="LoadM3d.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ShadowMap.h" />
+    <ClInclude Include="SkinnedData.h" />
     <ClInclude Include="Ssao.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="UploadBuffer.h" />
@@ -181,8 +183,10 @@
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="d3dApp.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="LoadM3d.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
+    <ClCompile Include="SkinnedData.cpp" />
     <ClCompile Include="Ssao.cpp" />
   </ItemGroup>
   <ItemGroup>
