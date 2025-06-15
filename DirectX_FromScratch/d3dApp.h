@@ -14,8 +14,6 @@
 #include "Camera.h"
 #include "ShadowMap.h"
 #include "Ssao.h"
-#include "SkinnedData.h"
-#include "LoadM3d.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -30,37 +28,12 @@ using namespace DirectX::PackedVector;
 enum class RenderLayer : int
 {
 	Opaque = 0,
-	SkinnedOpaque,
 	Debug,
 	Sky,
 	Count
 };
 
 extern const int gNumFrameResources;
-
-struct SkinnedModelInstance
-{
-	SkinnedData* SkinnedInfo = nullptr;
-	std::vector<DirectX::XMFLOAT4X4> FinalTransforms;
-	std::string ClipName;
-	float TimePos = 0.0f;
-
-	// Called every frame and increments the time position, interpolates the 
-	// animations for each bone based on the current animation clip, and 
-	// generates the final transforms which are ultimately set to the effect
-	// for processing in the vertex shader.
-	void UpdateSkinnedAnimation(float dt)
-	{
-		TimePos += dt;
-
-		// Loop animation
-		if (TimePos > SkinnedInfo->GetClipEndTime(ClipName))
-			TimePos = 0.0f;
-
-		// Compute the final transforms for this time position.
-		SkinnedInfo->GetFinalTransforms(ClipName, TimePos, FinalTransforms);
-	}
-};
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
@@ -95,12 +68,6 @@ struct RenderItem
 	UINT IndexCount = 0;
 	UINT StartIndexLocation = 0;
 	int BaseVertexLocation = 0;
-
-	// Only applicable to skinned render-items.
-	UINT SkinnedCBIndex = -1;
-
-	// nullptr if this render-item is not animated by skinned mesh.
-	SkinnedModelInstance* SkinnedModelInst = nullptr;
 };
 
 class d3dApp
@@ -132,12 +99,10 @@ private:
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
-	void UpdateSkinnedCBs(const GameTimer& gt);
 	void UpdateShadowTransform(const GameTimer& gt);
 	void UpdateShadowPassCB(const GameTimer& gt);
 	void UpdateSsaoCB(const GameTimer& gt);
 
-	void LoadSkinnedModel();
 	void LoadTextures();
 	void BuildRootSignature();
 	void BuildSsaoRootSignature();
@@ -181,8 +146,6 @@ private:
 	std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
-	std::vector<D3D12_INPUT_ELEMENT_DESC> mSkinnedInputLayout;
-
 
 	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
@@ -205,14 +168,6 @@ private:
 
 	PassConstants mMainPassCB;  // index 0 of pass cbuffer.
 	PassConstants mShadowPassCB;// index 1 of pass cbuffer.
-
-	UINT mSkinnedSrvHeapStart = 0;
-	std::string mSkinnedModelFilename = "Models\\soldier.m3d";
-	std::unique_ptr<SkinnedModelInstance> mSkinnedModelInst;
-	SkinnedData mSkinnedInfo;
-	std::vector<M3DLoader::Subset> mSkinnedSubsets;
-	std::vector<M3DLoader::M3dMaterial> mSkinnedMats;
-	std::vector<std::string> mSkinnedTextureNames;
 
 	POINT mLastMousePos;
 

@@ -14,11 +14,6 @@ struct ObjectConstants
     UINT     ObjPad2;
 };
 
-struct SkinnedConstants
-{
-    DirectX::XMFLOAT4X4 BoneTransforms[96];
-};
-
 struct PassConstants
 {
     DirectX::XMFLOAT4X4 View = MathHelper::Identity4x4();
@@ -95,23 +90,13 @@ struct Vertex
     DirectX::XMFLOAT3 TangentU;
 };
 
-struct SkinnedVertex
-{
-    DirectX::XMFLOAT3 Pos;
-    DirectX::XMFLOAT3 Normal;
-    DirectX::XMFLOAT2 TexC;
-    DirectX::XMFLOAT3 TangentU;
-    DirectX::XMFLOAT3 BoneWeights;
-    BYTE BoneIndices[4];
-};
-
 // Stores the resources needed for the CPU to build the command lists
 // for a frame.  
 struct FrameResource
 {
 public:
 
-    FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT skinnedObjectCount, UINT materialCount);
+    FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT materialCount);
     FrameResource(const FrameResource& rhs) = delete;
     FrameResource& operator=(const FrameResource& rhs) = delete;
     ~FrameResource();
@@ -124,9 +109,12 @@ public:
     // that reference it.  So each frame needs their own cbuffers.
     std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
     std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
-    std::unique_ptr<UploadBuffer<SkinnedConstants>> SkinnedCB = nullptr;
     std::unique_ptr<UploadBuffer<SsaoConstants>> SsaoCB = nullptr;
+
     std::unique_ptr<UploadBuffer<MaterialData>> MaterialBuffer = nullptr;
+
+
+
 
     // Fence value to mark commands up to this fence point.  This lets us
     // check if these frame resources are still in use by the GPU.

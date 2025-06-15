@@ -1,5 +1,5 @@
 //=============================================================================
-// SsaoBlur.hlsl by Frank Luna (C) 2011 All Rights Reserved.
+// SsaoBlur.hlsl by Frank Luna (C) 2015 All Rights Reserved.
 //
 // Performs a bilateral edge preserving blur of the ambient map.  We use 
 // a pixel shader instead of compute shader to avoid the switch from 
@@ -27,7 +27,10 @@ cbuffer cbSsao : register(b0)
     float gOcclusionFadeEnd;
     float gSurfaceEpsilon;
 
-    
+    float gDp;
+    float pad1;
+    float pad2;
+    float pad3;
 };
 
 cbuffer cbRootConstants : register(b1)
