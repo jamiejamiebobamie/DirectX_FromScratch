@@ -10,7 +10,7 @@ using namespace DirectX;
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 
-const int gNumFrameResources = 3;
+const int gNumFrameResources = 3; 
 
 LRESULT CALLBACK
 MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
