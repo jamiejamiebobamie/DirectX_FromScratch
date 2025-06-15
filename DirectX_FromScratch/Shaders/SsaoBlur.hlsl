@@ -131,9 +131,15 @@ float4 PS(VertexOut pin) : SV_Target
 		// We discard such samples from the blur.
 		//
 	
-        if (dot(neighborNormal, centerNormal) >= 0.8f &&
-		    abs(neighborDepth - centerDepth) <= 0.2f)
-        {
+        // exercise -> remove edge-perserving conditional
+        // removing below condition will cause blur to NOT preserve shadow's sharp edges
+        
+        //if (
+            //dot(neighborNormal, centerNormal) >= 0.8f 
+           // &&
+//		    abs(neighborDepth - centerDepth) <= 0.2f
+        //    )
+        //{
             float weight = blurWeights[i + gBlurRadius];
 
 			// Add neighbor pixel to blur.
@@ -141,7 +147,7 @@ float4 PS(VertexOut pin) : SV_Target
                 gsamPointClamp, tex, 0.0);
 		
             totalWeight += weight;
-        }
+        //}
     }
 
 	// Compensate for discarded samples by making total weights sum to 1.
