@@ -105,6 +105,7 @@ float OcclusionFunction(float distZ)
 		// from gOcclusionFadeStart to gOcclusionFadeEnd.	
         occlusion = saturate((gOcclusionFadeEnd - distZ) / fadeLength);
     }
+*/
 	
     return occlusion;
 }
