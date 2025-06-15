@@ -145,6 +145,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AnimationHelper.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="d3dx12_barriers.h" />
@@ -167,12 +168,11 @@
     <ClInclude Include="d3dApp.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="Resource.h" />
-    <ClInclude Include="ShadowMap.h" />
-    <ClInclude Include="Ssao.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="UploadBuffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AnimationHelper.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
@@ -182,8 +182,6 @@
     <ClCompile Include="d3dApp.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="MathHelper.cpp" />
-    <ClCompile Include="ShadowMap.cpp" />
-    <ClCompile Include="Ssao.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DirectX_FromScratch.rc" />

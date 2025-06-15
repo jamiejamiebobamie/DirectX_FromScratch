@@ -12,8 +12,7 @@
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
 #include "Camera.h"
-#include "ShadowMap.h"
-#include "Ssao.h"
+#include "AnimationHelper.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -99,13 +98,10 @@ private:
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
-	void UpdateShadowTransform(const GameTimer& gt);
-	void UpdateShadowPassCB(const GameTimer& gt);
-	void UpdateSsaoCB(const GameTimer& gt);
 
+	void DefineSkullAnimation();
 	void LoadTextures();
 	void BuildRootSignature();
-	void BuildSsaoRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
 	void BuildShapeGeometry();
@@ -153,6 +149,10 @@ private:
 	// Render items divided by PSO.
 	std::vector<RenderItem*> mOpaqueRitems;
 
+	RenderItem* mSkullRitem = nullptr;
+	XMFLOAT4X4 mSkullWorld = MathHelper::Identity4x4();
+
+
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
 	UINT mSkyTexHeapIndex = 0;
@@ -174,10 +174,6 @@ private:
 	Camera mCamera;
 
 	bool mIsOrtho = true;
-
-	std::unique_ptr<ShadowMap> mShadowMap;
-
-	std::unique_ptr<Ssao> mSsao;
 
 	RenderItem* mSunRitem = nullptr;
 
@@ -283,5 +279,8 @@ protected:
 	bool mIsEdited = false;
 
 	float mDp = 100.0f;
+
+	float mAnimTimePos = 0.0f;
+	BoneAnimation mSkullAnimation;
 };
 

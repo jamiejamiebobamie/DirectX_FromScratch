@@ -22,10 +22,8 @@ struct PassConstants
     DirectX::XMFLOAT4X4 InvProj = MathHelper::Identity4x4();
     DirectX::XMFLOAT4X4 ViewProj = MathHelper::Identity4x4();
     DirectX::XMFLOAT4X4 InvViewProj = MathHelper::Identity4x4();
-    DirectX::XMFLOAT4X4 ViewProjTex = MathHelper::Identity4x4();
-    DirectX::XMFLOAT4X4 ShadowTransform = MathHelper::Identity4x4();
     DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
-    float Dp = 100.0f;
+    float cbPerObjectPad1 = 0.0f;
     DirectX::XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
     DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
     float NearZ = 0.0f;
@@ -42,42 +40,17 @@ struct PassConstants
     Light Lights[MaxLights];
 };
 
-struct SsaoConstants
-{
-    DirectX::XMFLOAT4X4 Proj;
-    DirectX::XMFLOAT4X4 InvProj;
-    DirectX::XMFLOAT4X4 ProjTex;
-    DirectX::XMFLOAT4   OffsetVectors[14];
-
-    // For SsaoBlur.hlsl
-    DirectX::XMFLOAT4 BlurWeights[3];
-
-    DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
-
-    // Coordinates given in view space.
-    float OcclusionRadius = 0.5f;
-    float OcclusionFadeStart = 0.2f;
-    float OcclusionFadeEnd = 2.0f;
-    float SurfaceEpsilon = 0.05f;
-
-    // Coordinates given in view space.
-    float dp = 1.0f;
-    float pad1;
-    float pad2;
-    float pad3;
-};
-
 struct MaterialData
 {
     DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
-    float Roughness = 0.5f;
+    float Roughness = 64.0f;
 
     // Used in texture mapping.
     DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
 
     UINT DiffuseMapIndex = 0;
-    UINT NormalMapIndex = 0;
+    UINT MaterialPad0;
     UINT MaterialPad1;
     UINT MaterialPad2;
 };
@@ -87,7 +60,6 @@ struct Vertex
     DirectX::XMFLOAT3 Pos;
     DirectX::XMFLOAT3 Normal;
     DirectX::XMFLOAT2 TexC;
-    DirectX::XMFLOAT3 TangentU;
 };
 
 // Stores the resources needed for the CPU to build the command lists
@@ -109,12 +81,8 @@ public:
     // that reference it.  So each frame needs their own cbuffers.
     std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
     std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
-    std::unique_ptr<UploadBuffer<SsaoConstants>> SsaoCB = nullptr;
 
     std::unique_ptr<UploadBuffer<MaterialData>> MaterialBuffer = nullptr;
-
-
-
 
     // Fence value to mark commands up to this fence point.  This lets us
     // check if these frame resources are still in use by the GPU.

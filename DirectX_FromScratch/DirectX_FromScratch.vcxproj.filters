@@ -87,7 +87,7 @@
     <ClInclude Include="Camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ShadowMap.h">
+    <ClInclude Include="AnimationHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -119,7 +119,7 @@
     <ClCompile Include="Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ShadowMap.cpp">
+    <ClCompile Include="AnimationHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -140,6 +140,9 @@
     <FxCompile Include="Shaders\Sky.hlsl" />
     <FxCompile Include="Shaders\ShadowDebug.hlsl" />
     <FxCompile Include="Shaders\Shadows.hlsl" />
+    <FxCompile Include="Shaders\DrawNormals.hlsl" />
+    <FxCompile Include="Shaders\Ssao.hlsl" />
+    <FxCompile Include="Shaders\SsaoBlur.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli" />
