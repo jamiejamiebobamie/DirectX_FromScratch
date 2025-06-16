@@ -27,17 +27,6 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
-enum class RenderLayer : int
-{
-	Opaque = 0,
-	SkinnedOpaque,
-	Debug,
-	Sky,
-	Count
-};
-
-extern const int gNumFrameResources;
-
 struct SkinnedModelInstance
 {
 	SkinnedData* SkinnedInfo = nullptr;
@@ -103,6 +92,15 @@ struct RenderItem
 	SkinnedModelInstance* SkinnedModelInst = nullptr;
 };
 
+enum class RenderLayer : int
+{
+	Opaque = 0,
+	SkinnedOpaque,
+	Debug,
+	Sky,
+	Count
+};
+
 class d3dApp
 {
 
@@ -144,7 +142,6 @@ private:
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
 	void BuildShapeGeometry();
-	void BuildSkullGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();

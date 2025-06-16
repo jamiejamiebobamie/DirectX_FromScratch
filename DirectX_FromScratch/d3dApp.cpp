@@ -120,43 +120,6 @@ bool d3dApp::Initialize()
 
 	// Wait until initialization is complete.
 	FlushCommandQueue();
-
-	HANDLE eventHandle = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	mFence->SetEventOnCompletion(UINT64_MAX, eventHandle);
-
-	/*
-	
-	// Assume device is a valid ID3D12Device*
-HRESULT reason = md3dDevice->GetDeviceRemovedReason();
-
-if (FAILED(reason))
-{
-    std::cerr << "Device removed! Reason: " << std::hex << reason << std::endl;
-
-    // Handle device lost scenario
-    if (reason == DXGI_ERROR_DEVICE_REMOVED)
-    {
-        std::cerr << "DXGI_ERROR_DEVICE_REMOVED: The GPU was removed." << std::endl;
-    }
-    else if (reason == DXGI_ERROR_DEVICE_RESET)
-    {
-        std::cerr << "DXGI_ERROR_DEVICE_RESET: The GPU was reset." << std::endl;
-    }
-    else if (reason == DXGI_ERROR_DRIVER_INTERNAL_ERROR)
-    {
-        std::cerr << "DXGI_ERROR_DRIVER_INTERNAL_ERROR: Driver encountered a critical error." << std::endl;
-    }
-    else
-    {
-        std::cerr << "Unexpected removal reason: " << reason << std::endl;
-    }
-}
-else
-{
-    std::cout << "Device is functioning normally." << std::endl;
-}
-	*/
-
 	return true;
 }
 
@@ -871,118 +834,6 @@ void d3dApp::BuildShapeGeometry()
 	mGeometries[geo->Name] = std::move(geo);
 }
 
-void d3dApp::BuildSkullGeometry()
-{
-	std::ifstream fin("Models/skull.txt");
-
-	if (!fin)
-	{
-		MessageBox(0, L"Models/skull.txt not found.", 0, 0);
-		return;
-	}
-
-	UINT vcount = 0;
-	UINT tcount = 0;
-	std::string ignore;
-
-	fin >> ignore >> vcount;
-	fin >> ignore >> tcount;
-	fin >> ignore >> ignore >> ignore >> ignore;
-
-	XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
-	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
-
-	XMVECTOR vMin = XMLoadFloat3(&vMinf3);
-	XMVECTOR vMax = XMLoadFloat3(&vMaxf3);
-
-	std::vector<Vertex> vertices(vcount);
-	for (UINT i = 0; i < vcount; ++i)
-	{
-		fin >> vertices[i].Pos.x >> vertices[i].Pos.y >> vertices[i].Pos.z;
-		fin >> vertices[i].Normal.x >> vertices[i].Normal.y >> vertices[i].Normal.z;
-
-		vertices[i].TexC = { 0.0f, 0.0f };
-
-		XMVECTOR P = XMLoadFloat3(&vertices[i].Pos);
-
-		XMVECTOR N = XMLoadFloat3(&vertices[i].Normal);
-
-		// Generate a tangent vector so normal mapping works.  We aren't applying
-		// a texture map to the skull, so we just need any tangent vector so that
-		// the math works out to give us the original interpolated vertex normal.
-		XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-		if (fabsf(XMVectorGetX(XMVector3Dot(N, up))) < 1.0f - 0.001f)
-		{
-			XMVECTOR T = XMVector3Normalize(XMVector3Cross(up, N));
-			XMStoreFloat3(&vertices[i].TangentU, T);
-		}
-		else
-		{
-			up = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
-			XMVECTOR T = XMVector3Normalize(XMVector3Cross(N, up));
-			XMStoreFloat3(&vertices[i].TangentU, T);
-		}
-
-
-		vMin = XMVectorMin(vMin, P);
-		vMax = XMVectorMax(vMax, P);
-	}
-
-	BoundingBox bounds;
-	XMStoreFloat3(&bounds.Center, 0.5f * (vMin + vMax));
-	XMStoreFloat3(&bounds.Extents, 0.5f * (vMax - vMin));
-
-	fin >> ignore;
-	fin >> ignore;
-	fin >> ignore;
-
-	std::vector<std::int32_t> indices(3 * tcount);
-	for (UINT i = 0; i < tcount; ++i)
-	{
-		fin >> indices[i * 3 + 0] >> indices[i * 3 + 1] >> indices[i * 3 + 2];
-	}
-
-	fin.close();
-
-	//
-	// Pack the indices of all the meshes into one index buffer.
-	//
-
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
-
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::int32_t);
-
-	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "skullGeo";
-
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
-	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
-
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
-
-	geo->VertexByteStride = sizeof(Vertex);
-	geo->VertexBufferByteSize = vbByteSize;
-	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
-	geo->IndexBufferByteSize = ibByteSize;
-
-	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)indices.size();
-	submesh.StartIndexLocation = 0;
-	submesh.BaseVertexLocation = 0;
-	submesh.Bounds = bounds;
-
-	geo->DrawArgs["skull"] = submesh;
-
-	mGeometries[geo->Name] = std::move(geo);
-}
-
 void d3dApp::BuildPSOs()
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
@@ -1187,6 +1038,7 @@ void d3dApp::BuildPSOs()
 		mShaders["skyPS"]->GetBufferSize()
 	};
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&skyPsoDesc, IID_PPV_ARGS(&mPSOs["sky"])));
+
 }
 
 void d3dApp::BuildFrameResources()
@@ -1466,8 +1318,6 @@ void d3dApp::DrawSceneToShadowMap()
 	// Change to DEPTH_WRITE.
 	mCommandList->ResourceBarrier(1, &resBarr);
 
-	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-
 	// Clear the back buffer and depth buffer.
 	mCommandList->ClearDepthStencilView(mShadowMap->Dsv(),
 		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
@@ -1479,6 +1329,7 @@ void d3dApp::DrawSceneToShadowMap()
 	mCommandList->OMSetRenderTargets(0, nullptr, false, &dsv);
 
 	// Bind the pass constant buffer for the shadow map pass.
+	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
 	mCommandList->SetGraphicsRootConstantBufferView(1, passCBAddress);
@@ -1759,14 +1610,14 @@ void d3dApp::Update(const GameTimer& gt)
 		XMStoreFloat3(&mRotatedLightDirections[i], lightDir);
 	}
 
-	//AnimateMaterials(gt);
-	//UpdateObjectCBs(gt);
-	//UpdateSkinnedCBs(gt);
-	//UpdateMaterialBuffer(gt);
-	//UpdateShadowTransform(gt);
-	//UpdateMainPassCB(gt);
-	//UpdateShadowPassCB(gt);
-	//UpdateSsaoCB(gt);
+	AnimateMaterials(gt);
+	UpdateObjectCBs(gt);
+	UpdateSkinnedCBs(gt);
+	UpdateMaterialBuffer(gt);
+	UpdateShadowTransform(gt);
+	UpdateMainPassCB(gt);
+	UpdateShadowPassCB(gt);
+	UpdateSsaoCB(gt);
 }
 
 void d3dApp::Draw(const GameTimer& gt)
@@ -1785,8 +1636,6 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-	
-	/*
 	
 	//
 	// Shadow map pass.
@@ -1820,9 +1669,6 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootSignature(mSsaoRootSignature.Get());
 	mSsao->ComputeSsao(mCommandList.Get(), mCurrFrameResource, 1);
 
-	*/
-
-	/*
 	//
 	// Main rendering pass.
 	//
@@ -1846,8 +1692,7 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	// Clear the back buffer and depth buffer.
 	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
-	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-
+	//mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
 	D3D12_CPU_DESCRIPTOR_HANDLE backBuff = CurrentBackBufferView();
@@ -1882,8 +1727,6 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
-
-	*/ auto 
 
 	// Indicate a state transition on the resource usage.
 	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -2101,7 +1944,6 @@ void d3dApp::UpdateMainPassCB(const GameTimer& gt)
 		0.5f, 0.5f, 0.0f, 1.0f);
 
 	XMMATRIX viewProjTex = XMMatrixMultiply(viewProj, T);
-
 	XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
 
 	XMStoreFloat4x4(&mMainPassCB.View, XMMatrixTranspose(view));
@@ -2193,7 +2035,7 @@ void d3dApp::UpdateSsaoCB(const GameTimer& gt)
 	// Coordinates given in view space.
 	ssaoCB.OcclusionRadius = 0.5f;
 	ssaoCB.OcclusionFadeStart = 0.2f;
-	ssaoCB.OcclusionFadeEnd = 1.0f;
+	ssaoCB.OcclusionFadeEnd = 2.0f;
 	ssaoCB.SurfaceEpsilon = 0.05f;
 
 	auto currSsaoCB = mCurrFrameResource->SsaoCB.get();
