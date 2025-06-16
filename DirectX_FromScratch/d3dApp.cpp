@@ -1924,26 +1924,6 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 
 void d3dApp::AnimateMaterials(const GameTimer& gt)
 {
-	// Scroll the water material texture coordinates.
-	auto waterMat = mMaterials["water"].get();
-
-	float& tu = waterMat->MatTransform(3, 0);
-	float& tv = waterMat->MatTransform(3, 1);
-
-	tu += sin(gt.TotalTime() * 0.1f) * 0.025f * gt.DeltaTime();
-	tv += 0.1f * gt.DeltaTime();
-
-	if (tu >= 1.0f)
-		tu -= 1.0f;
-
-	if (tv >= 1.0f)
-		tv -= 1.0f;
-
-	waterMat->MatTransform(3, 0) = tu;
-	waterMat->MatTransform(3, 1) = tv;
-
-	// Material has changed, so need to update cbuffer.
-	waterMat->NumFramesDirty = gNumFrameResources;
 }
 
 void d3dApp::UpdateObjectCBs(const GameTimer& gt)
