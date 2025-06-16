@@ -121,6 +121,42 @@ bool d3dApp::Initialize()
 	// Wait until initialization is complete.
 	FlushCommandQueue();
 
+	HANDLE eventHandle = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	mFence->SetEventOnCompletion(UINT64_MAX, eventHandle);
+
+	/*
+	
+	// Assume device is a valid ID3D12Device*
+HRESULT reason = md3dDevice->GetDeviceRemovedReason();
+
+if (FAILED(reason))
+{
+    std::cerr << "Device removed! Reason: " << std::hex << reason << std::endl;
+
+    // Handle device lost scenario
+    if (reason == DXGI_ERROR_DEVICE_REMOVED)
+    {
+        std::cerr << "DXGI_ERROR_DEVICE_REMOVED: The GPU was removed." << std::endl;
+    }
+    else if (reason == DXGI_ERROR_DEVICE_RESET)
+    {
+        std::cerr << "DXGI_ERROR_DEVICE_RESET: The GPU was reset." << std::endl;
+    }
+    else if (reason == DXGI_ERROR_DRIVER_INTERNAL_ERROR)
+    {
+        std::cerr << "DXGI_ERROR_DRIVER_INTERNAL_ERROR: Driver encountered a critical error." << std::endl;
+    }
+    else
+    {
+        std::cerr << "Unexpected removal reason: " << reason << std::endl;
+    }
+}
+else
+{
+    std::cout << "Device is functioning normally." << std::endl;
+}
+	*/
+
 	return true;
 }
 
@@ -1723,14 +1759,14 @@ void d3dApp::Update(const GameTimer& gt)
 		XMStoreFloat3(&mRotatedLightDirections[i], lightDir);
 	}
 
-	AnimateMaterials(gt);
-	UpdateObjectCBs(gt);
-	UpdateSkinnedCBs(gt);
-	UpdateMaterialBuffer(gt);
-	UpdateShadowTransform(gt);
-	UpdateMainPassCB(gt);
-	UpdateShadowPassCB(gt);
-	UpdateSsaoCB(gt);
+	//AnimateMaterials(gt);
+	//UpdateObjectCBs(gt);
+	//UpdateSkinnedCBs(gt);
+	//UpdateMaterialBuffer(gt);
+	//UpdateShadowTransform(gt);
+	//UpdateMainPassCB(gt);
+	//UpdateShadowPassCB(gt);
+	//UpdateSsaoCB(gt);
 }
 
 void d3dApp::Draw(const GameTimer& gt)
@@ -1749,7 +1785,9 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-
+	
+	/*
+	
 	//
 	// Shadow map pass.
 	//
@@ -1782,6 +1820,9 @@ void d3dApp::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootSignature(mSsaoRootSignature.Get());
 	mSsao->ComputeSsao(mCommandList.Get(), mCurrFrameResource, 1);
 
+	*/
+
+	/*
 	//
 	// Main rendering pass.
 	//
@@ -1805,6 +1846,8 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	// Clear the back buffer and depth buffer.
 	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
+	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
 
 	// Specify the buffers we are going to render to.
 	D3D12_CPU_DESCRIPTOR_HANDLE backBuff = CurrentBackBufferView();
@@ -1839,6 +1882,8 @@ void d3dApp::Draw(const GameTimer& gt)
 
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
+
+	*/ auto 
 
 	// Indicate a state transition on the resource usage.
 	resBarr = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -2150,8 +2195,6 @@ void d3dApp::UpdateSsaoCB(const GameTimer& gt)
 	ssaoCB.OcclusionFadeStart = 0.2f;
 	ssaoCB.OcclusionFadeEnd = 1.0f;
 	ssaoCB.SurfaceEpsilon = 0.05f;
-	ssaoCB.dp = mDp;
-
 
 	auto currSsaoCB = mCurrFrameResource->SsaoCB.get();
 	currSsaoCB->CopyData(0, ssaoCB);

@@ -30,7 +30,7 @@ struct PassConstants
     DirectX::XMFLOAT4X4 ViewProjTex = MathHelper::Identity4x4();
     DirectX::XMFLOAT4X4 ShadowTransform = MathHelper::Identity4x4();
     DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
-    float Dp = 100.0f;
+    float passCbPad1 = 0.0f;
     DirectX::XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
     DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
     float NearZ = 0.0f;
@@ -64,12 +64,6 @@ struct SsaoConstants
     float OcclusionFadeStart = 0.2f;
     float OcclusionFadeEnd = 2.0f;
     float SurfaceEpsilon = 0.05f;
-
-    // Coordinates given in view space.
-    float dp = 1.0f;
-    float pad1;
-    float pad2;
-    float pad3;
 };
 
 struct MaterialData
