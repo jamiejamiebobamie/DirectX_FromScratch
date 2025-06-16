@@ -292,6 +292,33 @@ void d3dApp::CreateRtvAndDsvDescriptorHeaps()
 		&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
 }
 
+void d3dApp::InitTestAnim()
+{
+
+	/*
+	* 
+	* 
+		ParentIndexOfBone0: -1
+ParentIndexOfBone1 : 0
+ParentIndexOfBone2 : 1
+ParentIndexOfBone3 : 2
+
+		void Set(
+		std::vector<int>& boneHierarchy,
+		std::vector<DirectX::XMFLOAT4X4>& boneOffsets,
+		std::unordered_map<std::string, AnimationClip>& animations);
+	*/
+
+
+
+	//std::vector<int> boneHierarchy = { -1, 0, 1, 2 };
+
+
+
+	//SkinnedData test = SkinnedData();
+	//test.Set(boneHierarchy);
+}
+
 void d3dApp::LoadSkinnedModel()
 {
 	std::vector<M3DLoader::SkinnedVertex> vertices;
@@ -1346,6 +1373,23 @@ void d3dApp::BuildRenderItems()
 		mAllRitems.push_back(std::move(rightCylRitem));
 		mAllRitems.push_back(std::move(leftSphereRitem));
 		mAllRitems.push_back(std::move(rightSphereRitem));
+
+
+
+		// TEST anim meshes
+		//auto arm0Ritem = std::make_unique<RenderItem>();
+		//XMStoreFloat4x4(&arm0Ritem->World, XMMatrixScaling(1.0f, 4.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f) * XMMatrixRotationY(0.0f));
+		//XMStoreFloat4x4(&arm0Ritem->TexTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
+		//arm0Ritem->ObjCBIndex = objCBIndex++;
+		//arm0Ritem->Mat = mMaterials["tile0"].get();
+		//arm0Ritem->Geo = mGeometries["shapeGeo"].get();
+		//arm0Ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		//arm0Ritem->IndexCount = arm0Ritem->Geo->DrawArgs["cylinder"].IndexCount;
+		//arm0Ritem->StartIndexLocation = arm0Ritem->Geo->DrawArgs["cylinder"].StartIndexLocation;
+		//arm0Ritem->BaseVertexLocation = arm0Ritem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
+
+		//mRitemLayer[(int)RenderLayer::Opaque].push_back(arm0Ritem.get());
+		//mAllRitems.push_back(std::move(arm0Ritem));
 	}
 
 	for (UINT i = 0; i < mSkinnedMats.size(); ++i)
@@ -1924,26 +1968,7 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 
 void d3dApp::AnimateMaterials(const GameTimer& gt)
 {
-	// Scroll the water material texture coordinates.
-	auto waterMat = mMaterials["water"].get();
 
-	float& tu = waterMat->MatTransform(3, 0);
-	float& tv = waterMat->MatTransform(3, 1);
-
-	tu += sin(gt.TotalTime() * 0.1f) * 0.025f * gt.DeltaTime();
-	tv += 0.1f * gt.DeltaTime();
-
-	if (tu >= 1.0f)
-		tu -= 1.0f;
-
-	if (tv >= 1.0f)
-		tv -= 1.0f;
-
-	waterMat->MatTransform(3, 0) = tu;
-	waterMat->MatTransform(3, 1) = tv;
-
-	// Material has changed, so need to update cbuffer.
-	waterMat->NumFramesDirty = gNumFrameResources;
 }
 
 void d3dApp::UpdateObjectCBs(const GameTimer& gt)

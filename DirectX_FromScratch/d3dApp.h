@@ -137,6 +137,7 @@ private:
 	void UpdateShadowPassCB(const GameTimer& gt);
 	void UpdateSsaoCB(const GameTimer& gt);
 
+	void InitTestAnim();
 	void LoadSkinnedModel();
 	void LoadTextures();
 	void BuildRootSignature();
