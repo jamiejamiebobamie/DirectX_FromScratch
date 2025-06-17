@@ -112,9 +112,6 @@ public:
 	///</summary>
 	MeshData CreateQuad(float x, float y, float w, float h, float depth);
 
-	// https://github.com/Tomson0119/3D-Game-Programming-With-DirectX-12-Exercise/blob/master/Chapter%207/Ex%207-3.cpp
-	MeshData CreateSkull();
-
 private:
 	void Subdivide(MeshData& meshData);
 	Vertex MidPoint(const Vertex& v0, const Vertex& v1);

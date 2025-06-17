@@ -4,7 +4,6 @@
 
 #include "GeometryGenerator.h"
 #include <algorithm>
-#include <fstream>
 
 using namespace DirectX;
 
@@ -106,7 +105,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSphere(float radius, uint32
 	MeshData meshData;
 
 	//
-	// Compute the vertices starting at the top pole and moving down the stacks.
+	// Compute the vertices stating at the top pole and moving down the stacks.
 	//
 
 	// Poles: note that there will be texture coordinate distortion as there is
@@ -655,53 +654,4 @@ GeometryGenerator::MeshData GeometryGenerator::CreateQuad(float x, float y, floa
 	meshData.Indices32[5] = 3;
 
 	return meshData;
-}
-
-GeometryGenerator::MeshData GeometryGenerator::CreateSkull()
-{
-	MeshData mesh;
-
-	std::ifstream file(L"Models\\skull.txt");
-	std::string line;
-
-	if (!file.is_open())
-	{
-		//MessageBox(0, L"File not found.", 0, 0);
-		assert(false);
-	}
-
-	int vertexCount = 0;
-	int triangleCount = 0;
-	std::string ignore;
-
-	file >> ignore >> vertexCount;
-	file >> ignore >> triangleCount;
-	file >> ignore >> ignore >> ignore >> ignore;
-
-	int indexCount = triangleCount * 3;
-
-	mesh.Vertices.resize(vertexCount);
-	mesh.Indices32.resize(indexCount);
-
-	for (size_t i = 0; i < vertexCount; ++i)
-	{
-
-		float texc = (float)(i %  3);
-
-		file >> mesh.Vertices[i].Position.x >> mesh.Vertices[i].Position.y
-			>> mesh.Vertices[i].Position.z;
-		file >> mesh.Vertices[i].Normal.x >> mesh.Vertices[i].Normal.y
-			>> mesh.Vertices[i].Normal.z;
-		mesh.Vertices[i].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
-		mesh.Vertices[i].TexC = XMFLOAT2(0.0f + texc, 0.0f + texc);
-	}
-
-	file >> ignore >> ignore >> ignore;
-
-	for (size_t i = 0; i < indexCount; ++i)
-		file >> mesh.Indices32[i];
-
-	file.close();
-
-	return mesh;
 }
