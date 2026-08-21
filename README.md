@@ -24,6 +24,7 @@ Part II Direct3D Foundations
 * Chapter 4 Direct3D Initialization
 * Chapter 5 The Rendering Pipeline
 * Chapter 6 Drawing in Direct3D
+  * [CHAPTER CODE AND EXERCISES 4-7](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/box-demo)
 * Chapter 7 Drawing in Direct3D Part II
   * [CHAPTER CODE AND EXERCISES 1-3](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/shapes-demo)
 * Chapter 8 Lighting
@@ -31,18 +32,24 @@ Part II Direct3D Foundations
 * Chapter 9 Texturing
   * [CHAPTER CODE AND EXERCISES 1-3](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/texturing-demo)
 * Chapter 10 Blending
+  * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/blending-demo)
+  * [FUN!](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/blending-demo-2)
 * Chapter 11 Stenciling
   * [CHAPTER CODE AND FUN](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/stenciling-demo)
   * [EXERCISES](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/stenciling-demo-exercises)
 * Chapter 12 The Geometry Shader
 * Chapter 13 The Compute Shader
 * Chapter 14 The Tessellation Stages
-  * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tesselation-demo-1)
+  * [CHAPTER CODE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tesselation-demo-1)
+  * [CHAPTER CODE 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/BezierPatch-demo)
   * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tessellation-ch14-ex1)
   * [EXERCISE 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tesselation-ch14-ex2)
   * [EXERCISE 3](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tessellation-ch14-ex3)
+  * [EXERCISE 7](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/bezier-ch14-ex7)
+  * [EXERCISE 8](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/bezier-ch14-ex8)
 Part III Topics
 * Chapter 15 Building a First Person Camera and Dynamic Indexing
+  * [CHAPTER CODE (AND FUN!)](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/camera-dynamic-indexing-demo)
 * Chapter 16 Instancing and Frustum Culling
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/instancing-and-culling-demo)
   * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/instancing-ch16-ex1)
