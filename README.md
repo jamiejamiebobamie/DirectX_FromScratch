@@ -16,12 +16,10 @@ https://d3dcoder.net/d3d12.htm
 ### Table of Contents
 
 Introduction
-
 Part I Mathematical Prerequisites
 * Chapter 1 Vector Algebra
 * Chapter 2 Matrix Algebra
 * Chapter 3 Transformations
-
 Part II Direct3D Foundations
 * Chapter 4 Direct3D Initialization
 * Chapter 5 The Rendering Pipeline
@@ -47,6 +45,7 @@ Part II Direct3D Foundations
   * [EXERCISE 4](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geom-shader-ch12-ex4)
   * [EXERCISE 5](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geom-shader-ch12-ex5)
   * [EXERCISE 6](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geom-shader-ch12-ex6)
+  * [FUN!](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geom-shader-skull-outline)
 * Chapter 13 The Compute Shader
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/compute-shader-vec-add)
   * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/compute-shader-ch13-ex1)
@@ -62,7 +61,6 @@ Part II Direct3D Foundations
   * [EXERCISE 3](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tessellation-ch14-ex3)
   * [EXERCISE 7](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/bezier-ch14-ex7)
   * [EXERCISE 8](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/bezier-ch14-ex8)
-
 Part III Topics
 * Chapter 15 Building a First Person Camera and Dynamic Indexing
   * [CHAPTER CODE (AND FUN!)](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/camera-dynamic-indexing-demo)
@@ -94,11 +92,10 @@ Part III Topics
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/quat-demo)
 * Chapter 23 Character Animation
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/skinned-mesh-demo)
-
-* Appendix A Introduction to Windows Programming
-* Appendix B High Level Shader Language Reference
-* Appendix C Some Analytic Geometry
-* Appendix D Selected Solutions
+Appendix A Introduction to Windows Programming
+Appendix B High Level Shader Language Reference
+Appendix C Some Analytic Geometry
+Appendix D Selected Solutions
 
 ## Getting Started
 
