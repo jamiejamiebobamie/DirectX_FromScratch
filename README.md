@@ -36,6 +36,7 @@ Part III Topics
 * Chapter 15 Building a First Person Camera and Dynamic Indexing
 * Chapter 16 Instancing and Frustum Culling
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/instancing-and-culling-demo)
+  * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/instancing-ch16-ex1)
 * Chapter 17 Picking
 * Chapter 18 Cube Mapping
 * Chapter 19 Normal Mapping
