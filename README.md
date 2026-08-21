@@ -29,11 +29,18 @@ Part II Direct3D Foundations
 * Chapter 8 Lighting
   * [CHAPTER CODE AND EXERCISES 1-6](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/lighting-demo)
 * Chapter 9 Texturing
+  * [CHAPTER CODE AND EXERCISES 1-3](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/texturing-demo)
 * Chapter 10 Blending
 * Chapter 11 Stenciling
+  * [CHAPTER CODE AND FUN](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/stenciling-demo)
+  * [EXERCISES](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/stenciling-demo-exercises)
 * Chapter 12 The Geometry Shader
 * Chapter 13 The Compute Shader
 * Chapter 14 The Tessellation Stages
+  * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tesselation-demo-1)
+  * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tessellation-ch14-ex1)
+  * [EXERCISE 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tesselation-ch14-ex2)
+  * [EXERCISE 3](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tessellation-ch14-ex3)
 Part III Topics
 * Chapter 15 Building a First Person Camera and Dynamic Indexing
 * Chapter 16 Instancing and Frustum Culling
@@ -55,7 +62,7 @@ Part III Topics
 * Chapter 21 Ambient Occlusion
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/ssao-demo)
   * [EXERCISE 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/ssao-demo-ch21-ex2)
-  * [FUN](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/ssao-demo-miasma)
+  * [FUN!](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/ssao-demo-miasma)
 * Chapter 22 Quaternions
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/quat-demo)
 * Chapter 23 Character Animation
