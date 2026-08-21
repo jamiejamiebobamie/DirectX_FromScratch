@@ -39,6 +39,12 @@ Part II Direct3D Foundations
   * [EXERCISES](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/stenciling-demo-exercises)
 * Chapter 12 The Geometry Shader
 * Chapter 13 The Compute Shader
+  * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/compute-shader-vec-add)
+  * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/compute-shader-ch13-ex1)
+  * [EXERCISE 3](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/compute-shader-ch13-ex3)
+  * [EXERCISE 4](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/compute-shader-demo-blur)
+  * [EXERCISE 5](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/compute-shader-demo)
+  * [EXERCISE 6](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/compute-shader-demo-sobel)
 * Chapter 14 The Tessellation Stages
   * [CHAPTER CODE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tesselation-demo-1)
   * [CHAPTER CODE 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/BezierPatch-demo)
@@ -50,6 +56,7 @@ Part II Direct3D Foundations
 Part III Topics
 * Chapter 15 Building a First Person Camera and Dynamic Indexing
   * [CHAPTER CODE (AND FUN!)](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/camera-dynamic-indexing-demo)
+  * [EXERCISE 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/camera-ch15-ex2)
 * Chapter 16 Instancing and Frustum Culling
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/instancing-and-culling-demo)
   * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/instancing-ch16-ex1)
