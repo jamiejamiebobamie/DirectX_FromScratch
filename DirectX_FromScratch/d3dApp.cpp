@@ -1450,7 +1450,7 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 
 	const float speed = 50.0f;
 
-	mIsRoll = false;
+	//mIsRoll = false;
 
 	if (GetAsyncKeyState('W') & 0x8000)
 		mCamera.Walk(speed * dt, y);
@@ -1464,8 +1464,11 @@ void d3dApp::OnKeyboardInput(const GameTimer& gt)
 	if (GetAsyncKeyState('D') & 0x8000)
 		mCamera.Strafe(speed * dt, y);
 
-	if (GetAsyncKeyState('R') & 0x8000)
-		mIsRoll = true;
+	//if (!mIsRoll && GetAsyncKeyState('R') & 0x8000)
+	//	mIsRoll = true;
+
+	//if (mIsRoll && GetAsyncKeyState('R') & 0x8000)
+	//	mIsRoll = false;
 
 	mCamera.UpdateViewMatrix();
 }

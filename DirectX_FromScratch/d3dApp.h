@@ -166,7 +166,7 @@ private:
 
 	bool mIsWireframe = false;
 
-	bool mIsRoll = false;
+	bool mIsRoll = true;
 
 	POINT mLastMousePos;
 
