@@ -84,11 +84,11 @@ Part III Topics
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/quat-demo)
 * Chapter 23 Character Animation
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/skinned-mesh-demo)
-</br>
-Appendix A Introduction to Windows Programming
-Appendix B High Level Shader Language Reference
-Appendix C Some Analytic Geometry
-Appendix D Selected Solutions
+
+* Appendix A Introduction to Windows Programming
+* Appendix B High Level Shader Language Reference
+* Appendix C Some Analytic Geometry
+* Appendix D Selected Solutions
 
 ## Getting Started
 
