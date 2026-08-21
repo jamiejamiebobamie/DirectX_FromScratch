@@ -15,11 +15,12 @@ https://d3dcoder.net/d3d12.htm
 
 ### Table of Contents
 
-Introduction
+Introduction  
 Part I Mathematical Prerequisites
 * Chapter 1 Vector Algebra
 * Chapter 2 Matrix Algebra
-* Chapter 3 Transformations
+* Chapter 3 Transformations  
+
 Part II Direct3D Foundations
 * Chapter 4 Direct3D Initialization
 * Chapter 5 The Rendering Pipeline
@@ -60,7 +61,8 @@ Part II Direct3D Foundations
   * [EXERCISE 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tesselation-ch14-ex2)
   * [EXERCISE 3](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/tessellation-ch14-ex3)
   * [EXERCISE 7](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/bezier-ch14-ex7)
-  * [EXERCISE 8](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/bezier-ch14-ex8)
+  * [EXERCISE 8](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/bezier-ch14-ex8)  
+
 Part III Topics
 * Chapter 15 Building a First Person Camera and Dynamic Indexing
   * [CHAPTER CODE (AND FUN!)](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/camera-dynamic-indexing-demo)
@@ -91,10 +93,11 @@ Part III Topics
 * Chapter 22 Quaternions
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/quat-demo)
 * Chapter 23 Character Animation
-  * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/skinned-mesh-demo)
-Appendix A Introduction to Windows Programming
-Appendix B High Level Shader Language Reference
-Appendix C Some Analytic Geometry
+  * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/skinned-mesh-demo)  
+
+Appendix A Introduction to Windows Programming  
+Appendix B High Level Shader Language Reference  
+Appendix C Some Analytic Geometry  
 Appendix D Selected Solutions
 
 ## Getting Started
