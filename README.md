@@ -1,4 +1,4 @@
-# EXERCISES: Introduction to 3D Game Programming with DirectX 12
+# Introduction to 3D Game Programming with DirectX 12 (Exercises)
 
 ## Synopsis
 
