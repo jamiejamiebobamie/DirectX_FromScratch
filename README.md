@@ -1,11 +1,10 @@
 # Introduction to 3D Game Programming with DirectX 12 (Exercises)
 
+![README_resources/BookCover.jpg](README_resources/BookCover.png)
+
 ## Synopsis
 
-End of chapter exercises for the book: *Introduction to 3D Game Programming with DirectX 12* by Frank D. Luna.
-
-</br>
-![README_resources/BookCover.jpg](README_resources/BookCover.png)
+End of chapter exercises I completed while reading: *Introduction to 3D Game Programming with DirectX 12* by Frank D. Luna.
 
 Repo is originally forked from:
 https://github.com/d3dcoder/d3d12book_2ed
@@ -13,15 +12,19 @@ https://github.com/d3dcoder/d3d12book_2ed
 Book website:
 https://d3dcoder.net/d3d12.htm
 
-### Table of Contents
+**$\color{#FFD700}\textsf{Each exercise is on its own branch. Please see below for branches and exercises.}$**
 
-Introduction  
-Part I Mathematical Prerequisites
+****
+
+## Table of Contents
+
+### Introduction  
+### Part I Mathematical Prerequisites
 * Chapter 1 Vector Algebra
 * Chapter 2 Matrix Algebra
 * Chapter 3 Transformations  
 
-Part II Direct3D Foundations
+### Part II Direct3D Foundations
 * Chapter 4 Direct3D Initialization
 * Chapter 5 The Rendering Pipeline
 * Chapter 6 Drawing in Direct3D
@@ -95,6 +98,7 @@ Part III Topics
 * Chapter 23 Character Animation
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/skinned-mesh-demo)  
 
+### Appendices
 Appendix A Introduction to Windows Programming  
 Appendix B High Level Shader Language Reference  
 Appendix C Some Analytic Geometry  
