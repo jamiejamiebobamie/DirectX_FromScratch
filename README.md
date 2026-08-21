@@ -40,6 +40,13 @@ Part II Direct3D Foundations
   * [CHAPTER CODE AND FUN](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/stenciling-demo)
   * [EXERCISES](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/stenciling-demo-exercises)
 * Chapter 12 The Geometry Shader
+  * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geometry-shader-demo)
+  * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geom-shader-ch12-ex1)
+  * [EXERCISE 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geom-shader-ch12-ex2)
+  * [EXERCISE 3](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geom-shader-ch12-ex3)
+  * [EXERCISE 4](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geom-shader-ch12-ex4)
+  * [EXERCISE 5](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geom-shader-ch12-ex5)
+  * [EXERCISE 6](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/geom-shader-ch12-ex6)
 * Chapter 13 The Compute Shader
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/compute-shader-vec-add)
   * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/compute-shader-ch13-ex1)
@@ -67,6 +74,9 @@ Part III Topics
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/picking-demo)
   * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/picking-ch17-ex1)
 * Chapter 18 Cube Mapping
+  * [CHAPTER CODE AND EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/cube-map-demo)
+  * [EXERCISE 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/cube-map-ch18-ex2)
+  * [EXERCISE 3](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/cube-map-ch18-ex3)
 * Chapter 19 Normal Mapping
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/normal-map-demo)
   * [EXERCISE 1 AND 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/normal-map-ex1-ex2)
