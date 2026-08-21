@@ -71,9 +71,9 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 ## Companion Study Tools
 
 ### Flashcard App
-While going through the book, I created flash cards to help me remember the concepts and code.
+While going through the book, I created flash cards to remember the concepts and code.
 You can find the raw JSON flash cards here:
 * https://github.com/jamiejamiebobamie/flashcardApp/tree/master/src/SimulatedResponse/CardData/DirectX12
 
-Feel free to clone the repo and use the DirectX12 flash cards as well as the other flash cards. The app has related topics such as Linear Algebra and Trigonometry.
+Feel free to clone the repo and use the app for your studies. The app has related topics such as Linear Algebra and Trigonometry.
 * https://github.com/jamiejamiebobamie/flashcardApp
