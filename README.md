@@ -26,6 +26,7 @@ Part II Direct3D Foundations
 * Chapter 6 Drawing in Direct3D
 * Chapter 7 Drawing in Direct3D Part II
 * Chapter 8 Lighting
+  * [CHAPTER CODE AND EXERCISES 1-6](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/lighting-demo)
 * Chapter 9 Texturing
 * Chapter 10 Blending
 * Chapter 11 Stenciling
@@ -38,11 +39,20 @@ Part III Topics
   * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/instancing-and-culling-demo)
   * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/instancing-ch16-ex1)
 * Chapter 17 Picking
+  * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/picking-demo)
+  * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/picking-ch17-ex1)
 * Chapter 18 Cube Mapping
 * Chapter 19 Normal Mapping
+  * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/normal-map-demo)
+  * [EXERCISE 1 AND 2](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/normal-map-ex1-ex2)
+  * [EXERCISE 4](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/normal-map-ch19-ex4)
+  * [EXERCISE 5](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/normal-map-ch19-ex5)
 * Chapter 20 Shadow Mapping
+  * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/shadow-map-demo)
+  * [EXERCISE 1](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/shadow-map-ch20-ex1)
 * Chapter 21 Ambient Occlusion
 * Chapter 22 Quaternions
+ * [CHAPTER CODE](https://github.com/jamiejamiebobamie/DirectX_FromScratch/tree/quat-demo)
 * Chapter 23 Character Animation
 Appendix A Introduction to Windows Programming
 Appendix B High Level Shader Language Reference
