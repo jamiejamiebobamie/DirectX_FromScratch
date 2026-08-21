@@ -5,8 +5,7 @@
 End of chapter exercises for the book: *Introduction to 3D Game Programming with DirectX 12* by Frank D. Luna.
 
 </br>
-![README_resources/BookCover.jpg](https://github.com/jamiejamiebobamie/DirectX_FromScratch/blob/master/README_resources/BookCover.png)
-
+![README_resources/BookCover.jpg](README_resources/BookCover.png)
 
 Repo is originally forked from:
 https://github.com/d3dcoder/d3d12book_2ed
@@ -71,11 +70,10 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Companion Study Tools
 
-While going through the book, I created flash cards to help me remember the concepts and code.
+### Flashcard App
+While going through the book, I created flash cards to remember the concepts and code.
 You can find the raw JSON flash cards here:
 * https://github.com/jamiejamiebobamie/flashcardApp/tree/master/src/SimulatedResponse/CardData/DirectX12
 
-Feel free to clone the repo and use the flash cards for your own study:
+Feel free to clone the repo and use the app for your studies. The app has related topics such as Linear Algebra and Trigonometry.
 * https://github.com/jamiejamiebobamie/flashcardApp
-
-The app has related topics such as Linear Algebra and Trigonometry.
