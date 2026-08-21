@@ -5,7 +5,7 @@
 End of chapter exercises for the book: *Introduction to 3D Game Programming with DirectX 12* by Frank D. Luna.
 
 </br>
-![book cover]([README_resources/BookCover.jpg](https://github.com/jamiejamiebobamie/DirectX_FromScratch/blob/master/README_resources/BookCover.jpg))
+![README_resources/BookCover.jpg](https://github.com/jamiejamiebobamie/DirectX_FromScratch/blob/master/README_resources/BookCover.jpg)
 
 
 Repo is originally forked from:
